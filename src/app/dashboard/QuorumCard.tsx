@@ -75,6 +75,9 @@ export default function QuorumCard() {
         };
     }, []);
 
+    const percentage = Math.min(Math.max((quorum || 0) * 100, 0), 100);
+    const hasQuorum = (quorum || 0) > 0.5;
+
     return (
         <Card className="bg-[#121212] border-white/5">
             <CardHeader>
@@ -82,15 +85,23 @@ export default function QuorumCard() {
             </CardHeader>
             <CardContent>
                 {loading ? (
-                    <div className="text-xl text-gray-500">Calculando...</div>
+                    <div className="flex justify-between text-sm mt-3">
+                        <span className="text-gray-400">Necesario: mas de 50.00%</span>
+                        <span className="font-medium text-yellow-400">
+                            Esperando Quórum
+                        </span>
+                    </div>
                 ) : (
                     <>
-                        <div className={`text-3xl font-bold ${quorum >= 0.51 ? "text-emerald-500" : "text-yellow-500"}`}>
+                        <div className={`text-3xl font-bold ${hasQuorum ? "text-emerald-500" : "text-yellow-500"}`}>
                             {(quorum * 100).toFixed(2)}%
                         </div>
-                        <p className="text-sm text-gray-500 mt-2">
-                            Necesario: 51.00%
-                        </p>
+                        <div className="flex justify-between text-sm mt-3">
+                            <span className="text-gray-400">Necesario: mas de 50.00%</span>
+                            <span className={`font-medium ${hasQuorum ? "text-emerald-400" : "text-yellow-400"}`}>
+                                {hasQuorum ? "Quórum Alcanzado" : "Esperando Quórum"}
+                            </span>
+                        </div>
                     </>
                 )}
             </CardContent>

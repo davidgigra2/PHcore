@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, BarChart3, Lock, Users, Smartphone, Zap, CheckCircle2, Mail, PlayCircle } from "lucide-react";
+import { ArrowRight, BarChart3, Lock, Users, Smartphone, Zap, CheckCircle2, Mail, PlayCircle, FileText } from "lucide-react";
 
 export default function Home() {
   return (
@@ -129,9 +129,9 @@ export default function Home() {
               description="Gestión y validación de poderes mediante firma electrónica (OTP) vía SMS o Email."
             />
             <FeatureCard
-              icon={<BarChart3 className="w-6 h-6 text-purple-400" />}
+              icon={<FileText className="w-8 h-8 text-indigo-400" />}
               title="Reportes Automáticos"
-              description="Generación inmediata de actas, listados de asistencia y detalle de votaciones al finalizar."
+              description="Generación inmediata de Informe de registro de asistencia con coeficientes, Listado de inasistencia con coeficientes, Resultados detallados de las votaciones, Relación de los poderes registrados."
             />
           </div>
         </div>
@@ -169,13 +169,12 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Al Finalizar</h3>
-                  <p className="text-gray-400 leading-relaxed">Generación automática del acta, reporte de asistencia y certificados de votación listos para descargar.</p>
+                  <p className="text-gray-400 leading-relaxed">Generación automática de reporte de asistencia, de votación y poderes listos para descargar.</p>
                 </div>
               </div>
             </div>
           </div>
           <div className="relative">
-            {/* Abstract visual representation of dashboard */}
             <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 blur-3xl -z-10" />
             <div className="rounded-xl border border-white/10 bg-[#121212]/80 backdrop-blur-sm p-6 shadow-2xl">
               <div className="flex justify-between items-center mb-8 border-b border-white/5 pb-4">
@@ -210,9 +209,16 @@ export default function Home() {
             />
             <PricingCard
               title="Estándar"
-              price="$1.5M"
+              price="$1.6M"
+              description="Para asambleas medianas y grandes."
               isPopular
-              features={["Hasta 400 Unidades", "Poderes Digitales", "Soporte Prioritario", "Asesor Presencial (4h)"]}
+              features={[
+                "Hasta 300 unidades",
+                "Votaciones ilimitadas",
+                "Soporte prioritario",
+                "4 asesores permanentes durante toda la asamblea",
+                "Dominio personalizado"
+              ]}
             />
             <PricingCard
               title="Premium"
@@ -261,7 +267,7 @@ export default function Home() {
   );
 }
 
-function PricingCard({ title, price, features, isPopular }: { title: string, price: string, features: string[], isPopular?: boolean }) {
+function PricingCard({ title, price, features, isPopular, description }: { title: string, price: string, features: string[], isPopular?: boolean, description?: string }) {
   return (
     <Card className={`bg-[#121212] border-white/5 relative ${isPopular ? "border-indigo-500 shadow-2xl shadow-indigo-500/10" : ""}`}>
       {isPopular && (
@@ -272,6 +278,7 @@ function PricingCard({ title, price, features, isPopular }: { title: string, pri
       <CardHeader>
         <CardTitle className="text-xl text-gray-100">{title}</CardTitle>
         <div className="text-3xl font-bold mt-2 text-white">{price} <span className="text-sm font-normal text-gray-500">/ evento</span></div>
+        {description && <p className="text-sm text-gray-400 mt-2">{description}</p>}
       </CardHeader>
       <CardContent>
         <ul className="space-y-4 mb-6">
