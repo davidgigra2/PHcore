@@ -263,12 +263,12 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                         <p className="text-sm text-gray-400 mb-2">
                                             Estás representando a {receivedProxies.length} unidades:
                                         </p>
-                                        {receivedProxies.map((proxy) => (
-                                            <div key={proxy.id} className="p-3 bg-[#1A1A1A] border border-white/10 rounded-lg flex justify-between items-center">
+                                        {receivedProxies.map((proxy, idx) => (
+                                            <div key={idx} className="p-3 bg-[#1A1A1A] border border-white/10 rounded-lg flex justify-between items-center">
                                                 <div>
-                                                    <p className="text-white font-medium">{proxy.principal?.full_name}</p>
+                                                    <p className="text-white font-medium">{proxy.name}</p>
                                                     <p className="text-xs text-gray-500">
-                                                        Unidad: {proxy.principal?.units?.number} | Coef: {Number(proxy.principal?.units?.coefficient).toFixed(4)}
+                                                        Unidad: {proxy.unit} | Coef: {Number(proxy.coefficient).toFixed(4)}
                                                     </p>
                                                 </div>
                                                 <div className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-xs rounded border border-emerald-500/20">
@@ -278,10 +278,10 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                         ))}
                                         <div className="p-3 bg-indigo-900/10 border border-indigo-500/20 rounded-lg mt-4">
                                             <p className="text-sm text-indigo-300 text-center">
-                                                Tu voto ahora vale: <span className="font-bold text-white">
+                                                Tu poder total suma: <span className="font-bold text-white">
                                                     {(
-                                                        receivedProxies.reduce((acc, p) => acc + (p.principal?.units?.coefficient || 0), 0)
-                                                    ).toFixed(4)} + Tu Coef.
+                                                        receivedProxies.reduce((acc, p) => acc + (p.coefficient || 0), 0)
+                                                    ).toFixed(4)}
                                                 </span>
                                             </p>
                                         </div>
