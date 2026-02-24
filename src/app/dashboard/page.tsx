@@ -155,7 +155,7 @@ export default async function DashboardPage() {
                             </Card>
                         </Link>
                     )}
-                    
+
                     <Card className="bg-[#121212] border-white/5">
                         <CardHeader>
                             <CardTitle className="text-gray-200">Estado de Asamblea</CardTitle>
@@ -168,29 +168,31 @@ export default async function DashboardPage() {
 
                     <QuorumCard />
 
-
-                    {userProfile?.units ? (
-                        <Card className="bg-[#121212] border-white/5">
-                            <CardHeader>
-                                <CardTitle className="text-gray-200">Tu Coeficiente</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-3xl font-bold text-white">
-                                    {Number(userProfile.units.coefficient).toFixed(4)}
-                                </div>
-                                <p className="text-sm text-gray-500 mt-2">Peder de voto</p>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <Card className="bg-[#121212] border-white/5">
-                            <CardHeader>
-                                <CardTitle className="text-gray-200">Total Unidades</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-3xl font-bold text-white">--</div>
-                                <p className="text-sm text-gray-500 mt-2">Registradas</p>
-                            </CardContent>
-                        </Card>
+                    {/* Show Coefficient ONLY for Property Owners (Asambleístas) */}
+                    {userProfile?.role === 'USER' && (
+                        userProfile?.units ? (
+                            <Card className="bg-[#121212] border-white/5">
+                                <CardHeader>
+                                    <CardTitle className="text-gray-200">Tu Coeficiente</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-3xl font-bold text-white">
+                                        {Number(userProfile.units.coefficient).toFixed(4)}
+                                    </div>
+                                    <p className="text-sm text-gray-500 mt-2">Peder de voto</p>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card className="bg-[#121212] border-white/5">
+                                <CardHeader>
+                                    <CardTitle className="text-gray-200">Total Unidades</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-3xl font-bold text-white">--</div>
+                                    <p className="text-sm text-gray-500 mt-2">Registradas</p>
+                                </CardContent>
+                            </Card>
+                        )
                     )}
                     {/* User QR Code (Visible only to Asambleístas) */}
                     {userProfile?.role === 'USER' && (

@@ -11,6 +11,7 @@ export async function registerProxy(params: {
     type: ProxyType;
     externalName?: string;
     externalDoc?: string;
+    ownerDoc?: string; // NEW: The owner of the unit (Principal)
 }) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -18,6 +19,21 @@ export async function registerProxy(params: {
 
     try {
         let representativeId = params.representativeId;
+        let principalId = user.id; // Default is the user GIVING power
+
+        // IF OPERATOR: principalId is NOT the actor, but the user identified by ownerDoc
+        if (params.type === 'OPERATOR' && params.ownerDoc) {
+            const { data: ownerUser } = await supabase
+                .from("users")
+                .select("id")
+                .eq("document_number", params.ownerDoc)
+                .single();
+
+            if (!ownerUser) {
+                return { success: false, message: `Propietario con documento '${params.ownerDoc}' no encontrado.` };
+            }
+            principalId = ownerUser.id;
+        }
 
         // If doc number provided, find user
         if (!representativeId && params.representativeDoc) {
@@ -43,12 +59,12 @@ export async function registerProxy(params: {
 
         // Insert Proxy
         const { error } = await supabase.from("proxies").insert({
-            principal_id: user.id,
+            principal_id: principalId,
             representative_id: representativeId,
             external_name: params.externalName,
             external_doc_number: params.externalDoc || params.representativeDoc,
             type: params.type,
-            status: 'APPROVED', // Auto-approve for now, or PENDING if digital flow
+            status: 'APPROVED',
             is_external: !representativeId
         });
 
