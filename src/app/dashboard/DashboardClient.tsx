@@ -185,6 +185,7 @@ export default function DashboardClient({
                         userRole={userProfile?.role}
                         givenProxy={givenProxy}
                         receivedProxies={powerStats?.representedUnits || []}
+                        ownWeight={powerStats?.ownWeight || 0}
                     />
                 )}
 
