@@ -285,6 +285,7 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
     const [loadingSigned, setLoadingSigned] = useState(false);
     const [signedHtml, setSignedHtml] = useState<string | null>(null);
     const [pdfUploaded, setPdfUploaded] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
     const uploadStartedRef = useRef(false);
 
     useEffect(() => {
@@ -294,52 +295,49 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
             try {
                 const { getProxyDocumentContent } = await import("./power-actions");
                 const res = await getProxyDocumentContent({ proxyId });
-                if (res.success && res.html) {
-                    // Use a fixed off-screen div appended to the body to ensure html2canvas can compute styles properly
-                    // ─────────────────────────────────────────────────────────
-                    // 3. Backend PDF Generation using Puppeteer (Server-side)
-                    // ─────────────────────────────────────────────────────────
-                    console.log("Solicitando PDF al servidor...");
-                    const response = await fetch('/api/proxy-pdf', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            html: res.html,
-                            fileName: `proxy-${proxyId}.pdf`
-                        })
-                    });
+                if (!res.success || !res.html) {
+                    setUploadError(`Error al obtener el documento: ${res.message || 'desconocido'}`);
+                    return;
+                }
+                const response = await fetch('/api/proxy-pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ html: res.html, fileName: `proxy-${proxyId}.pdf` })
+                });
 
-                    if (!response.ok) {
-                        const err = await response.text();
-                        console.error("API Error generating PDF:", err);
-                        throw new Error("Fallo al generar PDF en el servidor.");
-                    }
+                if (!response.ok) {
+                    const err = await response.text();
+                    setUploadError(`Error generando PDF: ${err.slice(0, 200)}`);
+                    return;
+                }
 
-                    const pdfBlob = await response.blob();
-                    console.log("PDF generado, tamaño:", pdfBlob.size);
+                const pdfBlob = await response.blob();
 
-                    if (userId) {
-                        const { createClient } = await import("@/lib/supabase/client");
-                        const supabase = createClient();
-                        const fileName = `${Date.now()}-digital-proxy.pdf`;
-                        const filePath = `${userId}/${fileName}`;
+                if (userId) {
+                    const { createClient } = await import("@/lib/supabase/client");
+                    const supabase = createClient();
+                    const fileName = `${Date.now()}-digital-proxy.pdf`;
+                    const filePath = `${userId}/${fileName}`;
 
-                        const { data: uploadData, error: uploadError } = await supabase.storage
-                            .from('proxies')
-                            .upload(filePath, pdfBlob, { contentType: 'application/pdf' });
+                    const { error: storageErr } = await supabase.storage
+                        .from('proxies')
+                        .upload(filePath, pdfBlob, { contentType: 'application/pdf' });
 
-                        if (!uploadError) {
-                            const { data: publicUrlData } = supabase.storage.from('proxies').getPublicUrl(filePath);
-                            const { linkGeneratedProxyPDF } = await import("./power-actions");
-                            await linkGeneratedProxyPDF(proxyId, publicUrlData.publicUrl);
+                    if (!storageErr) {
+                        const { data: publicUrlData } = supabase.storage.from('proxies').getPublicUrl(filePath);
+                        const { linkGeneratedProxyPDF } = await import("./power-actions");
+                        const linkRes = await linkGeneratedProxyPDF(proxyId, publicUrlData.publicUrl);
+                        if (linkRes.success) {
                             setPdfUploaded(true);
-                            console.log("PDF subido y vinculado:", publicUrlData.publicUrl);
                         } else {
-                            console.error("Storage upload error:", uploadError.message);
+                            setUploadError(`Error al vincular PDF: ${linkRes.message}`);
                         }
+                    } else {
+                        setUploadError(`Error al subir a Storage: ${storageErr.message}`);
                     }
                 }
-            } catch (e) {
+            } catch (e: any) {
+                setUploadError(`Error inesperado: ${e.message}`);
                 console.error("Auto PDF upload error:", e);
             }
         };
@@ -387,6 +385,12 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
                     ✅ El poder quedó registrado en el sistema de la asamblea.
                 </p>
             </div>
+
+            {uploadError && (
+                <div className="w-full p-3 rounded-xl bg-red-900/30 border border-red-500/50 text-center">
+                    <p className="text-xs text-red-400 font-mono break-all">{uploadError}</p>
+                </div>
+            )}
 
             {proxyId && (
                 <div className="w-full max-w-xs mt-2">
