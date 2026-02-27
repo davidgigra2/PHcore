@@ -760,10 +760,10 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                         {!isCameraActive ? (
                                             <Button
                                                 onClick={() => { setIsCameraActive(true); setTimeout(startCamera, 100); }}
-                                                className="w-full h-24 text-xl font-bold rounded-3xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl flex items-center justify-center gap-4"
+                                                className="w-full min-h-[5rem] py-4 px-5 text-base sm:text-lg font-bold rounded-3xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl flex items-center justify-center gap-3 text-center leading-tight whitespace-normal"
                                             >
-                                                <Camera className="w-8 h-8" />
-                                                Abrir Cámara para tomar foto al Poder
+                                                <Camera className="w-7 h-7 shrink-0" />
+                                                <span>Abrir Cámara para tomar foto al Poder</span>
                                             </Button>
                                         ) : (
                                             /* ── Vista de cámara: pantalla completa ── */
@@ -893,9 +893,12 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                                 }
                                             }}
                                             disabled={loading}
-                                            className="w-full h-20 text-xl font-extrabold tracking-wide bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-2xl shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-3"
+                                            className="w-full min-h-[5rem] py-4 px-5 text-base sm:text-xl font-extrabold leading-tight tracking-wide whitespace-normal bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-2xl shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-3 text-center"
                                         >
-                                            {loading ? <><Loader2 className="w-7 h-7 animate-spin" /> Procesando...</> : <><CheckCircle2 className="w-7 h-7" /> FINALIZAR Y REGISTRAR PODER</>}
+                                            {loading
+                                                ? <><Loader2 className="w-6 h-6 animate-spin shrink-0" /><span>Procesando...</span></>
+                                                : <><CheckCircle2 className="w-6 h-6 shrink-0" /><span>Finalizar y Registrar Poder</span></>
+                                            }
                                         </Button>
                                     </div>
                                 )}

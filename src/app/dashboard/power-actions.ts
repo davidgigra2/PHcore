@@ -410,15 +410,19 @@ export async function registerProxy(params: {
     const admin = getServiceClient();
 
     try {
-        // ── Validar que el propietario tenga unidades registradas ──
+        // ── Determinar el principal (propietario real) ──
+        // Para OPERATOR: el principal es el propietario buscado por externalDoc
+        // Para USER normal: el principal es el usuario autenticado
+        let principalId = user.id;
+
         if (params.type === 'OPERATOR') {
-            // Para operador: buscar propietario por ownerDoc (externalDoc)
             if (!params.externalDoc || params.externalDoc.trim() === '') {
                 return { success: false, message: "Debe ingresar la cédula del propietario." };
             }
+
             const { data: ownerUser } = await admin
                 .from('users')
-                .select('id, full_name')
+                .select('id, full_name, document_number')
                 .eq('document_number', params.externalDoc.trim())
                 .maybeSingle();
 
@@ -435,6 +439,10 @@ export async function registerProxy(params: {
             if (!ownerUnits || ownerUnits.length === 0) {
                 return { success: false, message: `El propietario con cédula ${params.externalDoc} no tiene unidades registradas en este sistema.` };
             }
+
+            // Usar el ID del propietario como principal
+            principalId = ownerUser.id;
+
         } else {
             // Para usuario normal: verificar que tenga unidades propias o represente alguna
             const { data: userProfile } = await admin.from('users').select('document_number').eq('id', user.id).maybeSingle();
@@ -461,16 +469,16 @@ export async function registerProxy(params: {
             }
         }
 
-        if (representativeId && representativeId === user.id) {
-            return { success: false, message: "No puedes representarte a ti mismo como tercero." };
+        if (representativeId && representativeId === principalId) {
+            return { success: false, message: "El apoderado no puede ser el mismo que el propietario." };
         }
 
-        const { data: oldProxies } = await admin.from("proxies").select("id, representative_id, document_url").eq("principal_id", user.id).eq("status", "APPROVED");
+        // Revocar poderes anteriores del propietario real
+        const { data: oldProxies } = await admin.from("proxies").select("id, representative_id, document_url").eq("principal_id", principalId).eq("status", "APPROVED");
         if (oldProxies) {
             for (const op of oldProxies) {
-                await restoreProxyRights(admin, user.id, op.representative_id);
+                await restoreProxyRights(admin, principalId, op.representative_id);
 
-                // Cleanup old document if exists
                 if (op.document_url) {
                     try {
                         const urlParts = op.document_url.split('/proxies/');
@@ -485,7 +493,7 @@ export async function registerProxy(params: {
         }
 
         const { data: newProxy, error } = await admin.from("proxies").insert({
-            principal_id: user.id,
+            principal_id: principalId,          // ← ID del propietario real
             representative_id: representativeId,
             external_name: params.externalName,
             external_doc_number: params.externalDoc || params.representativeDoc,
@@ -497,9 +505,9 @@ export async function registerProxy(params: {
 
         if (error) throw error;
 
-        // Activate Rights
+        // Activar derechos del apoderado sobre las unidades del propietario real
         if (representativeId) {
-            await activateProxyRights(admin, user.id, representativeId);
+            await activateProxyRights(admin, principalId, representativeId);
         }
 
         revalidatePath("/dashboard");
