@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
       allowedOrigins: ["localhost:3000", "192.168.1.9:3000"],
     },
   },
+  outputFileTracingIncludes: {
+    '/api/proxy-pdf': ['./node_modules/@sparticuz/chromium/**/*'],
+  },
   serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium', 'puppeteer'],
   typescript: {
     ignoreBuildErrors: true,
