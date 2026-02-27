@@ -410,6 +410,47 @@ export async function registerProxy(params: {
     const admin = getServiceClient();
 
     try {
+        // ── Validar que el propietario tenga unidades registradas ──
+        if (params.type === 'OPERATOR') {
+            // Para operador: buscar propietario por ownerDoc (externalDoc)
+            if (!params.externalDoc || params.externalDoc.trim() === '') {
+                return { success: false, message: "Debe ingresar la cédula del propietario." };
+            }
+            const { data: ownerUser } = await admin
+                .from('users')
+                .select('id, full_name')
+                .eq('document_number', params.externalDoc.trim())
+                .maybeSingle();
+
+            if (!ownerUser) {
+                return { success: false, message: `No existe ningún usuario registrado con la cédula ${params.externalDoc}.` };
+            }
+
+            const { data: ownerUnits } = await admin
+                .from('units')
+                .select('id')
+                .or(`owner_document_number.eq.${params.externalDoc.trim()},representative_id.eq.${ownerUser.id}`)
+                .limit(1);
+
+            if (!ownerUnits || ownerUnits.length === 0) {
+                return { success: false, message: `El propietario con cédula ${params.externalDoc} no tiene unidades registradas en este sistema.` };
+            }
+        } else {
+            // Para usuario normal: verificar que tenga unidades propias o represente alguna
+            const { data: userProfile } = await admin.from('users').select('document_number').eq('id', user.id).maybeSingle();
+            if (userProfile) {
+                const { data: userUnits } = await admin
+                    .from('units')
+                    .select('id')
+                    .or(`owner_document_number.eq.${userProfile.document_number},representative_id.eq.${user.id}`)
+                    .limit(1);
+
+                if (!userUnits || userUnits.length === 0) {
+                    return { success: false, message: "No tienes unidades registradas a tu nombre. Solo los propietarios nativos pueden otorgar poderes." };
+                }
+            }
+        }
+
         let representativeId = params.representativeId;
         if (!representativeId && params.representativeDoc) {
             const createdId = await getOrCreateRepresentative(admin, params.representativeDoc, params.externalName);

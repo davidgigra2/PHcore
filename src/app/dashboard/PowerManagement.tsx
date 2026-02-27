@@ -766,31 +766,35 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                                 Abrir Cámara para tomar foto al Poder
                                             </Button>
                                         ) : (
-                                            <div className="space-y-4">
-                                                <div className="relative aspect-[4/3] rounded-3xl overflow-hidden bg-[#1A1A1A] border-4 border-white/5 shadow-2xl">
-                                                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                                                    <div className="absolute inset-0 pointer-events-none border-[40px] border-black/40 flex items-center justify-center">
-                                                        <div className="w-full h-full border-2 border-dashed border-white/30 rounded-xl" />
-                                                    </div>
-                                                    <div className="absolute top-6 left-6 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">En Vivo</span>
-                                                    </div>
-                                                    <div className="absolute inset-0 flex items-center justify-center">
-                                                        <button
-                                                            onClick={takePhoto}
-                                                            className="group/shutter flex flex-col items-center gap-3 transition-transform active:scale-95"
-                                                        >
-                                                            <div className="w-24 h-24 rounded-full border-4 border-white flex items-center justify-center bg-black/20 backdrop-blur-sm hover:bg-black/40 transition-colors">
-                                                                <div className="w-16 h-16 rounded-full bg-white shadow-lg" />
-                                                            </div>
-                                                            <span className="bg-black/80 backdrop-blur-md text-white text-sm font-black px-4 py-2 rounded-xl uppercase tracking-widest shadow-xl">
-                                                                Tomar foto
-                                                            </span>
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                            /* ── Vista de cámara: pantalla completa ── */
+                                            <div className="fixed inset-0 z-50 bg-black flex flex-col">
+                                                {/* Vídeo rectangular ocupando toda la pantalla */}
+                                                <video
+                                                    ref={videoRef}
+                                                    autoPlay
+                                                    playsInline
+                                                    className="absolute inset-0 w-full h-full object-cover"
+                                                />
                                                 <canvas ref={canvasRef} className="hidden" />
+
+                                                {/* Botón cerrar — esquina superior derecha */}
+                                                <button
+                                                    onClick={() => { stopCamera(); setIsCameraActive(false); }}
+                                                    className="absolute top-5 right-5 z-10 w-11 h-11 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white border border-white/20 active:scale-95 transition-transform"
+                                                >
+                                                    <XCircle className="w-6 h-6" />
+                                                </button>
+
+                                                {/* Botón obturador circular — centrado en la parte inferior */}
+                                                <div className="absolute bottom-10 inset-x-0 flex flex-col items-center gap-3 z-10">
+                                                    <button
+                                                        onClick={takePhoto}
+                                                        className="w-20 h-20 rounded-full border-4 border-white bg-white/20 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform shadow-2xl"
+                                                    >
+                                                        <div className="w-14 h-14 rounded-full bg-white shadow-inner" />
+                                                    </button>
+                                                    <span className="text-white/80 text-xs font-semibold uppercase tracking-widest">Tomar foto</span>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
