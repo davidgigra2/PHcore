@@ -666,6 +666,7 @@ export async function getProxyDocumentContent(params: { representativeDoc?: stri
     const docTpl = await getTemplate(assemblyId, 'PROXY_DOCUMENT', 'EMAIL');
 
     const asDate = new Date(assemblyDateStr || Date.now());
+    const todayDate = new Date(); // Current date for DIA/MES/ANIO on the proxy document
     const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
     const vars: Record<string, string> = {
@@ -675,9 +676,9 @@ export async function getProxyDocumentContent(params: { representativeDoc?: stri
         "{{CEDULA_APODERADO}}": representativeDoc,
         "{{FECHA_ASAMBLEA}}": asDate.toLocaleDateString('es-CO'),
         "{{CIUDAD}}": assemblyCity,
-        "{{DIA}}": asDate.getDate().toString(),
-        "{{MES}}": monthNames[asDate.getMonth()],
-        "{{ANIO}}": asDate.getFullYear().toString(),
+        "{{DIA}}": todayDate.getDate().toString(),
+        "{{MES}}": monthNames[todayDate.getMonth()],
+        "{{ANIO}}": todayDate.getFullYear().toString(),
         "{{OTP}}": otpValue,
         "{{TIMESTAMP}}": timestampValue,
     };
