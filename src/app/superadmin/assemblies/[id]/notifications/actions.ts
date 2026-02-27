@@ -488,7 +488,7 @@ export async function saveTemplate(template: NotificationTemplate) {
   return { success: true, message: "Plantilla guardada correctamente" };
 }
 
-export async function sendWelcomeNotifications(assemblyId: string, skipCount: number = 0) {
+export async function sendWelcomeNotifications(assemblyId: string, skipCount: number = 0, emailOnly: boolean = false) {
   const supabase = await createClient();
 
   // Verify SuperAdmin
@@ -611,7 +611,7 @@ export async function sendWelcomeNotifications(assemblyId: string, skipCount: nu
         fs.appendFileSync('debug_notifications.log', `No email available for ${rep.id}\n`);
       }
 
-      if (rep.phone) {
+      if (rep.phone && !emailOnly) {
         promises.push(sendSMS(rep.phone, smsBody)
           .then(res => {
             fs.appendFileSync('debug_notifications.log', `SMS result for ${rep.phone}: ${JSON.stringify(res)}\n`);

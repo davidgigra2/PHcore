@@ -75,6 +75,7 @@ export default function NotificationsTab({ assemblyId }: NotificationsTabProps) 
     const [sending, setSending] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [skipCount, setSkipCount] = useState<number>(0);
+    const [emailOnly, setEmailOnly] = useState<boolean>(false);
 
     const loadTemplate = async (type: NotificationType, channel: NotificationChannel) => {
         setLoading(true);
@@ -122,7 +123,7 @@ export default function NotificationsTab({ assemblyId }: NotificationsTabProps) 
         setSending(true);
         setMessage(null);
         try {
-            const res = await sendWelcomeNotifications(assemblyId, skipCount);
+            const res = await sendWelcomeNotifications(assemblyId, skipCount, emailOnly);
             if (res.success) {
                 setMessage({ type: 'success', text: res.message || "Notificaciones en proceso de envío" });
             } else {
@@ -315,6 +316,16 @@ export default function NotificationsTab({ assemblyId }: NotificationsTabProps) 
                                                         disabled={sending}
                                                     />
                                                 </div>
+                                                <label className="flex items-center gap-1 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={emailOnly}
+                                                        onChange={e => setEmailOnly(e.target.checked)}
+                                                        disabled={sending}
+                                                        className="accent-emerald-500"
+                                                    />
+                                                    <span className="text-xs text-gray-400 whitespace-nowrap">Solo email</span>
+                                                </label>
                                                 <Button
                                                     onClick={handleSend}
                                                     disabled={sending || saving}
