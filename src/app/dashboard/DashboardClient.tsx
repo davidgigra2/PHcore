@@ -145,7 +145,7 @@ export default function DashboardClient({
                             </CardContent>
                         </Card>
 
-                        <QuorumCard />
+                        <QuorumCard assemblyId={userProfile?.assembly_id} />
 
                         {/* Coefficient Card (Visible to USER if assigned) */}
                         {isUser && (
