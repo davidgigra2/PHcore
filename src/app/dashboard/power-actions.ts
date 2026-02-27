@@ -578,6 +578,44 @@ export async function linkGeneratedProxyPDF(proxyId: string, documentUrl: string
     }
 }
 
+// Server-side upload: bypasses RLS by using the admin storage client
+export async function uploadAndLinkProxyPDF(proxyId: string, pdfBase64: string, userId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, message: "No autenticado" };
+    if (user.id !== userId) return { success: false, message: "No autorizado" };
+
+    const admin = getServiceClient();
+
+    // Verify proxy belongs to user
+    const { data: proxy } = await admin.from("proxies").select("id, principal_id").eq("id", proxyId).single();
+    if (!proxy || proxy.principal_id !== user.id) return { success: false, message: "Poder no encontrado o no autorizado" };
+
+    try {
+        const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+        const fileName = `${Date.now()}-digital-proxy.pdf`;
+        const filePath = `${userId}/${fileName}`;
+
+        const { error: uploadError } = await admin.storage
+            .from('proxies')
+            .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true });
+
+        if (uploadError) {
+            console.error("Server storage upload error:", uploadError);
+            return { success: false, message: uploadError.message };
+        }
+
+        const { data: publicUrlData } = admin.storage.from('proxies').getPublicUrl(filePath);
+        await admin.from('proxies').update({ document_url: publicUrlData.publicUrl }).eq('id', proxyId);
+
+        return { success: true, url: publicUrlData.publicUrl };
+    } catch (e: any) {
+        console.error("Error uploading proxy PDF:", e);
+        return { success: false, message: e.message };
+    }
+}
+
+
 export async function getProxyDocumentContent(params: { representativeDoc?: string; representativeName?: string; isPreview?: boolean; proxyId?: string; }) {
     noStore();
     const supabase = await createClient();

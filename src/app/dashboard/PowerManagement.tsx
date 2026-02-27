@@ -319,27 +319,17 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
                     console.log("PDF generado por el servidor, tamaño:", pdfBlob.size);
                     // ─────────────────────────────────────────────────────────
 
-                    const { createClient } = await import("@/lib/supabase/client");
-                    const supabase = createClient();
-
+                    // Convert blob to base64 and upload via server action (bypasses RLS)
                     if (userId) {
-                        const fileName = `${Date.now()}-digital-proxy.pdf`;
-                        const filePath = `${userId}/${fileName}`;
-
-                        const { error: uploadError } = await supabase.storage
-                            .from('proxies')
-                            .upload(filePath, pdfBlob, {
-                                contentType: 'application/pdf'
-                            });
-
-                        if (!uploadError) {
-                            const { data: publicUrlData } = supabase.storage.from('proxies').getPublicUrl(filePath);
-                            const { linkGeneratedProxyPDF } = await import("./power-actions");
-                            await linkGeneratedProxyPDF(proxyId, publicUrlData.publicUrl);
+                        const arrayBuffer = await pdfBlob.arrayBuffer();
+                        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                        const { uploadAndLinkProxyPDF } = await import("./power-actions");
+                        const uploadResult = await uploadAndLinkProxyPDF(proxyId, base64, userId);
+                        if (uploadResult.success) {
                             setPdfUploaded(true);
                             console.log("PDF oficial respaldado y vinculado en la nube.");
                         } else {
-                            console.error("Storage upload error:", uploadError);
+                            console.error("Server upload error:", uploadResult.message);
                         }
                     }
                 }
