@@ -510,7 +510,11 @@ export async function getMyPowerStats(userId: string) {
 
     representedUnitsData?.forEach((u: any) => {
         const coef = u.coefficient || 0;
-        const isOwner = currentUser && u.owner_document_number === currentUser.document_number;
+
+        // Robust check to handle number vs string mismatches and trailing spaces
+        const doc1 = String(u.owner_document_number || '').trim().toLowerCase();
+        const doc2 = String(currentUser?.document_number || '').trim().toLowerCase();
+        const isOwner = doc1 === doc2 && doc1 !== '';
 
         if (isOwner) {
             ownWeight += coef;

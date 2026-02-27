@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
       allowedOrigins: ["localhost:3000", "192.168.1.9:3000"],
     },
   },
-  serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
+  serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium', 'puppeteer'],
   typescript: {
     ignoreBuildErrors: true,
   },
