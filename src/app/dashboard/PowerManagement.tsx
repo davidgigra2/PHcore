@@ -305,9 +305,7 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             html: res.html,
-                            fileName: `proxy-${proxyId}.pdf`,
-                            proxyId: proxyId,
-                            userId: userId
+                            fileName: `proxy-${proxyId}.pdf`
                         })
                     });
 
@@ -317,21 +315,28 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
                         throw new Error("Fallo al generar PDF en el servidor.");
                     }
 
-                    // Server now handles both generation and upload
-                    const contentType = response.headers.get('Content-Type') || '';
-                    if (contentType.includes('application/json')) {
-                        const result = await response.json();
-                        if (result.success) {
+                    const pdfBlob = await response.blob();
+                    console.log("PDF generado, tamaño:", pdfBlob.size);
+
+                    if (userId) {
+                        const { createClient } = await import("@/lib/supabase/client");
+                        const supabase = createClient();
+                        const fileName = `${Date.now()}-digital-proxy.pdf`;
+                        const filePath = `${userId}/${fileName}`;
+
+                        const { data: uploadData, error: uploadError } = await supabase.storage
+                            .from('proxies')
+                            .upload(filePath, pdfBlob, { contentType: 'application/pdf' });
+
+                        if (!uploadError) {
+                            const { data: publicUrlData } = supabase.storage.from('proxies').getPublicUrl(filePath);
+                            const { linkGeneratedProxyPDF } = await import("./power-actions");
+                            await linkGeneratedProxyPDF(proxyId, publicUrlData.publicUrl);
                             setPdfUploaded(true);
-                            console.log("PDF generado y subido en el servidor:", result.url);
+                            console.log("PDF subido y vinculado:", publicUrlData.publicUrl);
                         } else {
-                            console.error("Server upload error:", result.error);
+                            console.error("Storage upload error:", uploadError.message);
                         }
-                    } else {
-                        // Fallback: server returned raw PDF blob (storage upload failed)
-                        console.warn("Server returned raw PDF - storage upload may have failed.");
-                        const pdfBlob = await response.blob();
-                        console.log("PDF generado por el servidor, tamaño:", pdfBlob.size);
                     }
                 }
             } catch (e) {
