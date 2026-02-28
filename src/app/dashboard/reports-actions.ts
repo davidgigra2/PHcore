@@ -147,28 +147,50 @@ export async function getProxiesReport(requestedAssemblyId?: string) {
     const assemblyId = await getTargetAssemblyId(supabase, requestedAssemblyId);
     if (!assemblyId) return [];
 
-    let query = supabase
-        .from("proxies")
+    // 1. Obtener los IDs de usuarios que tienen unidades en esta asamblea
+    const { data: assemblyUnits } = await supabase
+        .from('units')
+        .select('owner_document_number, representative_id')
+        .eq('assembly_id', assemblyId);
+
+    if (!assemblyUnits || assemblyUnits.length === 0) return [];
+
+    // Recopilar todos los document_numbers de propietarios de la asamblea
+    const ownerDocs = [...new Set(assemblyUnits.map((u: any) => u.owner_document_number).filter(Boolean))];
+
+    if (ownerDocs.length === 0) return [];
+
+    // 2. Buscar user IDs de esos propietarios
+    const { data: ownerUsers } = await supabase
+        .from('users')
+        .select('id')
+        .in('document_number', ownerDocs);
+
+    const ownerIds = ownerUsers?.map((u: any) => u.id) || [];
+    if (ownerIds.length === 0) return [];
+
+    // 3. Obtener los poderes APPROVED de esos propietarios
+    const { data: proxies } = await supabase
+        .from('proxies')
         .select(`
-            *,
-            principal:users!proxies_principal_id_fkey!inner(full_name, assembly_id, document_number, units(number, coefficient)),
+            id, type, status, created_at,
+            external_name, external_doc_number,
+            principal:users!proxies_principal_id_fkey(full_name, document_number, units(number, coefficient)),
             representative:users!proxies_representative_id_fkey(full_name, document_number)
-        `);
-
-    if (assemblyId) {
-        query = query.eq('principal.assembly_id', assemblyId);
-    }
-
-    const { data: proxies } = await query.order("created_at", { ascending: false });
+        `)
+        .in('principal_id', ownerIds)
+        .eq('status', 'APPROVED')
+        .order('created_at', { ascending: false });
 
     return proxies?.map((p: any) => ({
         id: p.id,
         type: p.type,
         status: p.status,
-        principal: p.principal?.full_name,
-        principalUnit: p.principal?.units?.[0]?.number || "—",
+        principal: p.principal?.full_name || '—',
+        principalDoc: p.principal?.document_number || p.external_doc_number || '—',
+        principalUnit: p.principal?.units?.[0]?.number || '—',
         principalCoef: p.principal?.units?.[0]?.coefficient || 0,
-        representative: p.representative?.full_name || p.external_name || "Desconocido",
+        representative: p.representative?.full_name || p.external_name || 'Desconocido',
         representativeDoc: p.representative?.document_number || p.external_doc_number,
         date: new Date(p.created_at).toLocaleDateString()
     })) || [];
