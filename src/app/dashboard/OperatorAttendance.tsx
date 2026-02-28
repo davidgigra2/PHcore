@@ -43,7 +43,7 @@ function CountdownRing({ duration }: { duration: number }) {
 const FEEDBACK_DURATION = 2000;
 
 export default function OperatorAttendance() {
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
     const [scanResult, setScanResult] = useState<ScanResult>(null);
     const [manualDoc, setManualDoc] = useState("");
