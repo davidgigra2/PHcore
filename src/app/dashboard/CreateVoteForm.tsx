@@ -122,6 +122,7 @@ export default function CreateVoteForm({ assemblyId, onVoteCreated }: { assembly
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             onDoubleClick={(e) => (e.target as HTMLInputElement).select()}
+                            maxLength={255}
                             required
                         />
                     </div>
