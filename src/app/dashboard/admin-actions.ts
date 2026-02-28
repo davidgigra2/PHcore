@@ -59,6 +59,7 @@ export async function getVotesForDashboard(assemblyId: string): Promise<any[]> {
         .single();
 
     const isAdmin = profile?.role === 'ADMIN';
+    const isOperator = profile?.role === 'OPERATOR';
 
     let query = supabase
         .from('votes')
@@ -66,7 +67,9 @@ export async function getVotesForDashboard(assemblyId: string): Promise<any[]> {
         .eq('assembly_id', assemblyId)
         .order('created_at', { ascending: false });
 
-    if (!isAdmin) {
+    if (isOperator) {
+        query = query.eq('status', 'OPEN');
+    } else if (!isAdmin) {
         query = query.in('status', ['OPEN', 'CLOSED']);
     }
 

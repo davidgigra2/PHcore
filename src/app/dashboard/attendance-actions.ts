@@ -142,16 +142,26 @@ export async function registerAttendanceByDocument(documentNumber: string) {
             return { success: false, message: `El usuario ${targetUser.full_name} no representa ninguna unidad actualmente.` };
         }
 
-        // 4. Register Attendance for ALL represented units
+        // 4. Upsert con ignoreDuplicates: filas nuevas se retornan, duplicadas se ignoran sin error
         const logsToInsert = units.map(u => ({ unit_id: u.id, user_id: targetUser.id }));
 
-        const { error: attendanceError } = await supabase
+        const { data: inserted, error: attendanceError } = await supabase
             .from("attendance_logs")
-            .upsert(logsToInsert, { onConflict: 'unit_id' });
+            .upsert(logsToInsert, { onConflict: 'unit_id', ignoreDuplicates: true })
+            .select("unit_id");
 
         if (attendanceError) {
             console.error("Error registering via document:", attendanceError);
             return { success: false, message: `Error BD: ${attendanceError.message}` };
+        }
+
+        if (!inserted || inserted.length === 0) {
+            return {
+                success: false,
+                alreadyRegistered: true,
+                message: `${targetUser.full_name} ya tiene asistencia registrada.`,
+                data: { name: targetUser.full_name, unit: units.map(u => u.number).join(', ') }
+            };
         }
 
         const unitNumbers = units.map(u => u.number).join(', ');

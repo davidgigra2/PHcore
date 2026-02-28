@@ -80,7 +80,9 @@ export default async function DashboardPage() {
         voteQuery = voteQuery.eq('assembly_id', effectiveAssemblyId);
     }
 
-    if (!isAdmin) {
+    if (isOperator) {
+        voteQuery = voteQuery.eq('status', 'OPEN');
+    } else if (!isAdmin) {
         voteQuery = voteQuery.in('status', ['OPEN', 'CLOSED']);
     }
 

@@ -111,46 +111,51 @@ export async function getVotesReport(requestedAssemblyId?: string) {
         .eq("assembly_id", assemblyId)
         .order("created_at", { ascending: false });
 
-    const reports = [];
+    if (!votes || votes.length === 0) return [];
 
-    if (votes) {
-        for (const vote of votes) {
-            const { data: ballots } = await supabase
-                .from("ballots")
-                .select("option_id, weight, units(number)")
-                .eq("vote_id", vote.id);
+    const voteIds = votes.map((v: any) => v.id);
 
-            const results: Record<string, { count: number, weight: number, name: string }> = {};
+    const { data: allBallots } = await supabase
+        .from("ballots")
+        .select("vote_id, option_id, weight")
+        .in("vote_id", voteIds);
 
-            vote.vote_options?.forEach((opt: any) => {
-                results[opt.id] = { count: 0, weight: 0, name: opt.label };
-            });
+    // Group ballots by vote_id for O(1) lookup
+    const ballotsByVote = new Map<string, any[]>();
+    allBallots?.forEach((b: any) => {
+        if (!ballotsByVote.has(b.vote_id)) ballotsByVote.set(b.vote_id, []);
+        ballotsByVote.get(b.vote_id)!.push(b);
+    });
 
-            let totalVoteWeight = 0;
-            ballots?.forEach((b: any) => {
-                if (results[b.option_id]) {
-                    results[b.option_id].count++;
-                    results[b.option_id].weight += (b.weight || 0);
-                    totalVoteWeight += (b.weight || 0);
-                }
-            });
+    return votes.map((vote: any) => {
+        const results: Record<string, { count: number, weight: number, name: string }> = {};
 
-            reports.push({
-                id: vote.id,
-                title: vote.title,
-                status: vote.status,
-                totalWeight: totalVoteWeight,
-                results: Object.values(results).map(r => ({
-                    option: r.name,
-                    count: r.count,
-                    weight: r.weight,
-                    percentage: totalVoteWeight > 0 ? (r.weight / totalVoteWeight) * 100 : 0
-                }))
-            });
-        }
-    }
+        vote.vote_options?.forEach((opt: any) => {
+            results[opt.id] = { count: 0, weight: 0, name: opt.label };
+        });
 
-    return reports;
+        let totalVoteWeight = 0;
+        ballotsByVote.get(vote.id)?.forEach((b: any) => {
+            if (results[b.option_id]) {
+                results[b.option_id].count++;
+                results[b.option_id].weight += (b.weight || 0);
+                totalVoteWeight += (b.weight || 0);
+            }
+        });
+
+        return {
+            id: vote.id,
+            title: vote.title,
+            status: vote.status,
+            totalWeight: totalVoteWeight,
+            results: Object.values(results).map(r => ({
+                option: r.name,
+                count: r.count,
+                weight: r.weight,
+                percentage: totalVoteWeight > 0 ? (r.weight / totalVoteWeight) * 100 : 0
+            }))
+        };
+    });
 }
 
 export async function getProxiesReport(requestedAssemblyId?: string) {

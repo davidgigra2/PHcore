@@ -1,26 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
 
 interface VoteResultsProps {
     voteId: string;
     options: { id: string; label: string }[];
+    supabase: SupabaseClient;
 }
 
-interface VoteCount {
-    option_id: string;
-    count: number;
-}
-
-export default function VoteResults({ voteId, options }: VoteResultsProps) {
+export default function VoteResults({ voteId, options, supabase }: VoteResultsProps) {
     const [results, setResults] = useState<Record<string, number>>({});
     const [totalVotes, setTotalVotes] = useState(0);
     const [loading, setLoading] = useState(true);
-
-    const supabase = useRef(createClient()).current;
 
     // Fetch initial results
     useEffect(() => {

@@ -76,9 +76,8 @@ export default function DashboardClient({
 
         const channel = supabase
             .channel(`assembly_quorum_${assemblyId}`)
-            .on('broadcast', { event: 'quorum_update' }, async () => {
-                const total = await getAssemblyQuorum(assemblyId);
-                setQuorum(total);
+            .on('broadcast', { event: 'quorum_update' }, ({ payload }) => {
+                if (typeof payload?.quorum === 'number') setQuorum(payload.quorum);
             })
             .on('broadcast', { event: 'attendance_registered' }, async () => {
                 if (!isUser || isAttendanceRegisteredRef.current || representedUnits.length === 0) return;
@@ -103,7 +102,7 @@ export default function DashboardClient({
         if (!userProfile?.assembly_id) return;
         const total = await getAssemblyQuorum(userProfile.assembly_id);
         setQuorum(total);
-        quorumChannelRef.current?.send({ type: 'broadcast', event: 'quorum_update', payload: {} });
+        quorumChannelRef.current?.send({ type: 'broadcast', event: 'quorum_update', payload: { quorum: total } });
         quorumChannelRef.current?.send({ type: 'broadcast', event: 'attendance_registered', payload: {} });
     }, [userProfile?.assembly_id]);
 
@@ -119,7 +118,18 @@ export default function DashboardClient({
 
         let ch = supabase
             .channel(`assembly_votes_${assemblyId}`)
-            .on('broadcast', { event: 'votes_update' }, refreshVotes);
+            .on('broadcast', { event: 'votes_update' }, ({ payload }) => {
+                if (Array.isArray(payload?.votes)) {
+                    const filtered = isAdmin
+                        ? payload.votes
+                        : isOperator
+                            ? payload.votes.filter((v: any) => v.status === 'OPEN')
+                            : payload.votes.filter((v: any) => ['OPEN', 'CLOSED'].includes(v.status));
+                    setLocalVotes(filtered);
+                } else {
+                    refreshVotes();
+                }
+            });
 
         if (isAdmin) {
             ch = ch.on(
@@ -149,7 +159,7 @@ export default function DashboardClient({
         if (!userProfile?.assembly_id) return;
         const fresh = await getVotesForDashboard(userProfile.assembly_id);
         setLocalVotes(fresh);
-        votesChannelRef.current?.send({ type: 'broadcast', event: 'votes_update', payload: {} });
+        votesChannelRef.current?.send({ type: 'broadcast', event: 'votes_update', payload: { votes: fresh } });
     }, [userProfile?.assembly_id]);
 
 
@@ -346,7 +356,7 @@ export default function DashboardClient({
                                             {isAdmin && <AdminVoteControls voteId={vote.id} status={vote.status} onActionComplete={handleVoteAction} />}
 
                                             {(isAdmin || isClosed || hasVoted) && (
-                                                <VoteResults voteId={vote.id} options={vote.vote_options} />
+                                                <VoteResults voteId={vote.id} options={vote.vote_options} supabase={supabase} />
                                             )}
 
                                             {!isAdmin && !isDraft && !isClosed && vote.status === 'OPEN' && (
