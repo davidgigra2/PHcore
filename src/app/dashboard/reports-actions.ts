@@ -146,6 +146,7 @@ export async function getVotesReport(requestedAssemblyId?: string) {
         return {
             id: vote.id,
             title: vote.title,
+            description: vote.description || null,
             status: vote.status,
             totalWeight: totalVoteWeight,
             results: Object.values(results).map(r => ({

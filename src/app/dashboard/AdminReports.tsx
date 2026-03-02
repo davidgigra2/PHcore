@@ -169,7 +169,8 @@ export default function AdminReports({ assemblyId }: { assemblyId?: string }) {
                                     <div className="bg-[#1A1A1A] p-4 flex justify-between items-center">
                                         <div>
                                             <h3 className="text-white font-semibold">{vote.title}</h3>
-                                            <p className="text-xs text-gray-500">Estado: {vote.status} | Total Peso: {Number(vote.totalWeight).toFixed(4)}</p>
+                                            {vote.description && <p className="text-sm text-gray-400 mt-0.5">{vote.description}</p>}
+                                            <p className="text-xs text-gray-500 mt-1">Estado: {vote.status} | Total Peso: {Number(vote.totalWeight).toFixed(4)}</p>
                                         </div>
                                     </div>
                                     <Table>
