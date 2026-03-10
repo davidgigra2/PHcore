@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendEmail, sendSMS } from "@/lib/notifications";
-import * as fs from 'fs';
 
 export type NotificationType = "WELCOME" | "OTP_SIGN" | "PROXY_DOCUMENT";
 export type NotificationChannel = "EMAIL" | "SMS";
@@ -598,32 +597,16 @@ export async function sendWelcomeNotifications(assemblyId: string, skipCount: nu
 
       if (rep.email) {
         promises.push(sendEmail(rep.email, emailTemplate.subject || "Bienvenido a su Asamblea", emailBody)
-          .then(res => {
-            fs.appendFileSync('debug_notifications.log', `Email result for ${rep.email}: ${JSON.stringify(res)}\n`);
-            return { type: 'email', success: res.success };
-          })
-          .catch(err => {
-            fs.appendFileSync('debug_notifications.log', `Email error for ${rep.email}: ${err}\n`);
-            return { type: 'email', success: false };
-          })
+          .then(res => ({ type: 'email', success: res.success }))
+          .catch(() => ({ type: 'email', success: false }))
         );
-      } else {
-        fs.appendFileSync('debug_notifications.log', `No email available for ${rep.id}\n`);
       }
 
       if (rep.phone && !emailOnly) {
         promises.push(sendSMS(rep.phone, smsBody)
-          .then(res => {
-            fs.appendFileSync('debug_notifications.log', `SMS result for ${rep.phone}: ${JSON.stringify(res)}\n`);
-            return { type: 'sms', success: res.success };
-          })
-          .catch(err => {
-            fs.appendFileSync('debug_notifications.log', `SMS error for ${rep.phone}: ${err}\n`);
-            return { type: 'sms', success: false };
-          })
+          .then(res => ({ type: 'sms', success: res.success }))
+          .catch(() => ({ type: 'sms', success: false }))
         );
-      } else {
-        fs.appendFileSync('debug_notifications.log', `No phone available for ${rep.id}\n`);
       }
 
       const results = await Promise.all(promises);
