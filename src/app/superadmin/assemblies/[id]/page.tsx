@@ -48,12 +48,14 @@ export default async function AssemblyDashboard({ params }: { params: Promise<{ 
         { data: operators },
         { data: attendanceLogs },
         { data: votes },
+        { data: proxies },
     ] = await Promise.all([
-        admin.from('units').select('id, number, coefficient, owner_name, owner_document_number, owner_phone, representative:users!units_representative_id_fkey(full_name)').eq('assembly_id', id).order('number'),
+        admin.from('units').select('id, number, coefficient, owner_name, owner_document_number, owner_phone, owner_email, representative_id, representative:users!units_representative_id_fkey(id, full_name, document_number)').eq('assembly_id', id).order('number'),
         admin.from('users').select('id, full_name, email, username').eq('assembly_id', id).eq('role', 'ADMIN'),
         admin.from('users').select('id, full_name, email, username').eq('assembly_id', id).eq('role', 'OPERATOR'),
         admin.from('attendance_logs').select('unit_id, units(number, coefficient, assembly_id)').not('units', 'is', null),
         admin.from('votes').select('id, title, status, created_at, vote_options(id, text, votes_count), ballots(user_id)').order('created_at', { ascending: false }).limit(10),
+        admin.from('proxies').select('principal_id, representative_id, type, is_external').eq('status', 'APPROVED'),
     ]);
 
     // Filter attendance to this assembly only
@@ -70,6 +72,12 @@ export default async function AssemblyDashboard({ params }: { params: Promise<{ 
 
     const openVotes = (votes || []).filter((v: any) => v.status === 'OPEN').length;
     const closedVotes = (votes || []).filter((v: any) => v.status === 'CLOSED').length;
+
+    // Build a map: representative_id → { type, is_external } for quick lookup in UnitsTab
+    const proxyMap: Record<string, { type: string; is_external: boolean }> = {};
+    for (const p of (proxies || [])) {
+        if (p.representative_id) proxyMap[p.representative_id] = { type: p.type, is_external: p.is_external };
+    }
 
     return (
         <div className="p-8 space-y-8">
@@ -162,6 +170,7 @@ export default async function AssemblyDashboard({ params }: { params: Promise<{ 
                         units={units || []}
                         totalUnits={totalUnits}
                         totalCoefficient={totalCoefficient}
+                        proxyMap={proxyMap}
                     />
                 </TabsContent>
 
