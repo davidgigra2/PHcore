@@ -6,6 +6,7 @@ import { getAssemblyQuorum } from './attendance-actions';
 import { getVotesForDashboard } from './admin-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CheckCircle2, FileBarChart } from 'lucide-react';
 import Link from 'next/link';
 import QuorumCard from './QuorumCard';
@@ -71,7 +72,7 @@ export default function DashboardClient({
 
         getAssemblyQuorum(assemblyId)
             .then((total) => { setQuorum(total); })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => { setLoadingQuorum(false); });
 
         const channel = supabase
@@ -165,7 +166,7 @@ export default function DashboardClient({
 
     return (
         <div className="min-h-screen bg-[#141414] text-white p-4 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+            <div className="max-w-7xl mx-auto space-y-4 md:space-y-8">
 
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -182,10 +183,51 @@ export default function DashboardClient({
                             <span className="text-xs md:text-sm font-bold text-white">{userRoleLabel}</span>
                         </div>
                         {displayUnit !== 'Sin Unidad' && (
-                            <div className="px-3 md:px-4 py-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20 hidden sm:block">
-                                <span className="text-[10px] text-emerald-300 uppercase font-black tracking-widest block">Unidad</span>
-                                <span className="text-xs md:text-sm font-bold text-white">{displayUnit}</span>
-                            </div>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <div className="px-3 md:px-4 py-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-colors">
+                                        <span className="text-[10px] text-emerald-300 uppercase font-black tracking-widest block">Unidad</span>
+                                        <span className="text-xs md:text-sm font-bold text-white max-w-[120px] sm:max-w-none truncate sm:overflow-visible block sm:inline">{displayUnit}</span>
+                                    </div>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md bg-[#121212] border-white/10 p-6 rounded-3xl">
+                                    <DialogHeader>
+                                        <DialogTitle className="text-xl text-white font-black flex items-center gap-2 mb-2">
+                                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                            Tus Unidades
+                                        </DialogTitle>
+                                    </DialogHeader>
+                                    <div className="flex justify-between items-center px-4 py-3 bg-emerald-950/20 border border-emerald-500/20 rounded-xl mb-2">
+                                        <div>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Coeficiente Total</p>
+                                            <p className="text-2xl font-black text-white leading-none mt-2">{totalCoefficient.toFixed(4)}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Unidades</p>
+                                            <p className="text-2xl font-black text-white leading-none mt-2">{representedUnits.length}</p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 space-y-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                                        {representedUnits && representedUnits.length > 0 ? (
+                                            representedUnits.map((u: any, idx: number) => (
+                                                <div key={u.id || idx} className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                                        <span className="text-emerald-400 font-bold text-xs">{idx + 1}</span>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-white font-bold text-sm">{u.number}</p>
+                                                        {u.owner_name && <p className="text-gray-400 text-xs truncate">De: {u.owner_name}</p>}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="p-3 text-center text-gray-400">
+                                                {displayUnit}
+                                            </div>
+                                        )}
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         )}
                         <form action="/auth/signout" method="post">
                             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-white/10 h-10 px-3 md:px-4 rounded-lg font-medium">
@@ -198,42 +240,51 @@ export default function DashboardClient({
                 {/* Content Section */}
                 <div className={cn(
                     "grid gap-6 items-start",
-                    isUser ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1"
+                    isUser && !isAttendanceRegistered ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1"
                 )}>
-                    {/* ASAMBLEÍSTA: QR or Success Banner (LEFT COLUMN on Desktop) */}
-                    {isUser && (
+                    {/* ASAMBLEÍSTA: QR (LEFT COLUMN on Desktop before attendance) */}
+                    {isUser && !isAttendanceRegistered && (
                         <div className="lg:col-span-1 animate-in fade-in slide-in-from-top-4 duration-500">
-                            {isAttendanceRegistered ? (
-                                <Card className="bg-emerald-950/20 border-2 border-emerald-500/30 overflow-hidden shadow-2xl shadow-emerald-500/10 rounded-3xl h-full flex flex-col justify-center">
-                                    <CardContent className="py-8 md:py-10 flex flex-col items-center text-center gap-4">
-                                        <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                                            <CheckCircle2 className="w-10 h-10 text-emerald-400" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <h3 className="text-xl md:text-2xl font-black text-white">✅ Asistencia registrada</h3>
-                                            <p className="text-emerald-50/80 text-sm md:text-base max-w-xs mx-auto leading-relaxed">
-                                                ¡Bienvenido a la asamblea! Tu participación activa está confirmada.
-                                            </p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                <UserQRCard
-                                    documentNumber={userProfile?.document_number}
-                                    username={userProfile?.username || user.email}
-                                    unitNumber={displayUnit}
-                                />
-                            )}
+                            <UserQRCard
+                                documentNumber={userProfile?.document_number}
+                                username={userProfile?.username || user.email}
+                                unitNumber={displayUnit}
+                            />
                         </div>
                     )}
 
-                    {/* INDICATORS SECTION (RIGHT COLUMN on Desktop for User, FULL WIDTH for others) */}
-                    <div className={cn(
-                        "grid gap-4 md:gap-6",
-                        isUser
-                            ? "lg:col-span-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
-                            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                    )}>
+                    {/* ASAMBLEÍSTA: Success Banner & Quorum side by side after attendance */}
+                    {isUser && isAttendanceRegistered && (
+                        <div className="grid grid-cols-2 gap-3 sm:gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                            <Card className="bg-emerald-950/20 border-2 border-emerald-500/30 overflow-hidden shadow-2xl shadow-emerald-500/10 rounded-2xl md:rounded-3xl flex flex-col justify-center !p-1 md:!p-6 !gap-0">
+                                <CardContent className="!p-1 md:!p-6 flex flex-col items-center text-center gap-1 md:gap-4 justify-center">
+                                    <div className="w-8 h-8 md:w-16 md:h-16 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                        <CheckCircle2 className="w-5 h-5 md:w-10 md:h-10 text-emerald-400" />
+                                    </div>
+                                    <div className="space-y-0.5 md:space-y-2">
+                                        <h3 className="text-[13px] sm:text-lg md:text-2xl font-black text-white leading-tight">Asistencia registrada</h3>
+                                        <p className="text-emerald-50/80 text-[10px] md:text-base max-w-[150px] md:max-w-xs mx-auto leading-tight md:leading-relaxed">
+                                            Participación confirmada.
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Quorum Card sharing the horizontal space */}
+                            <div className="h-full">
+                                <QuorumCard quorum={quorum} loading={loadingQuorum} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* INDICATORS SECTION (Only show if there are indicators to display) */}
+                    {(isAdmin || !(isUser && isAttendanceRegistered) || (!isUser && !isAdmin && !isOperator)) && (
+                        <div className={cn(
+                            "grid gap-4 md:gap-6",
+                            isUser && !isAttendanceRegistered
+                                ? "lg:col-span-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+                                : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                        )} style={{ padding: '0px' }}>
                         {isAdmin && (
                             <Link href="/dashboard/reports" className="group h-full">
                                 <Card className="bg-indigo-950/20 border-indigo-500/20 hover:bg-indigo-900/30 transition-all cursor-pointer h-full shadow-lg rounded-2xl">
@@ -251,34 +302,12 @@ export default function DashboardClient({
                             </Link>
                         )}
 
-                        <Card className="bg-[#121212] border-white/5 shadow-lg rounded-2xl">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-gray-400 text-xs font-black uppercase tracking-widest">Estado de Asamblea</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl md:text-3xl font-black text-indigo-500">Activa</div>
-                                <p className="text-xs md:text-sm text-gray-500 mt-1 md:mt-2">Bienvenida y verificación</p>
-                            </CardContent>
-                        </Card>
-
-                        <QuorumCard quorum={quorum} loading={loadingQuorum} />
-
-                        {/* Coefficient Card (Visible to USER if assigned) */}
-                        {isUser && (
-                            <Card className="bg-[#121212] border-white/5 shadow-lg rounded-2xl sm:col-span-2 xl:col-span-1">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-gray-400 text-xs font-black uppercase tracking-widest">Tu Coeficiente Total</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl md:text-3xl font-black text-white">
-                                        {totalCoefficient.toFixed(4)}
-                                    </div>
-                                    <p className="text-xs md:text-sm text-gray-500 mt-1 md:mt-2">
-                                        Poder de voto ({representedUnits.length} unidades)
-                                    </p>
-                                </CardContent>
-                            </Card>
+                        {/* Only show standard quorum here if we haven't already shown it side-by-side with Attendance */}
+                        {!(isUser && isAttendanceRegistered) && (
+                            <QuorumCard quorum={quorum} loading={loadingQuorum} />
                         )}
+
+                        {/* Coefficient Card removed per user request, info is now in the Unidad modal */}
 
                         {!isUser && !isAdmin && !isOperator && (
                             <Card className="bg-[#121212] border-white/5 shadow-lg rounded-2xl">
@@ -292,6 +321,7 @@ export default function DashboardClient({
                             </Card>
                         )}
                     </div>
+                    )}
                 </div>
 
                 {/* 3. Power Management Section (CONDITIONAL FOR USER) */}
@@ -314,7 +344,7 @@ export default function DashboardClient({
 
                 {/* 5. Voting Section */}
                 {(!isUser || isAttendanceRegistered) && (
-                    <div className="space-y-6 pt-4">
+                    <div className="space-y-6 pt-0">
                         <div className="flex items-center gap-3">
                             <h2 className="text-xl md:text-2xl font-black tracking-tight">{isAdmin ? "Gestión de Votaciones" : "Votaciones en Curso"}</h2>
                             <div className="h-0.5 flex-1 bg-white/5" />
