@@ -178,10 +178,12 @@ export default function DashboardClient({
                     </div>
 
                     <div className="flex items-center gap-3 bg-[#121212] p-1.5 rounded-xl border border-white/5 shadow-2xl">
-                        <div className="px-3 md:px-4 py-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                            <span className="text-[10px] text-indigo-300 uppercase font-black tracking-widest block">Perfil</span>
-                            <span className="text-xs md:text-sm font-bold text-white">{userRoleLabel}</span>
-                        </div>
+                        {!isUser && (
+                            <div className="px-3 md:px-4 py-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+                                <span className="text-[10px] text-indigo-300 uppercase font-black tracking-widest block">Perfil</span>
+                                <span className="text-xs md:text-sm font-bold text-white">{userRoleLabel}</span>
+                            </div>
+                        )}
                         {displayUnit !== 'Sin Unidad' && (
                             <Dialog>
                                 <DialogTrigger asChild>
@@ -272,7 +274,7 @@ export default function DashboardClient({
 
                             {/* Quorum Card sharing the horizontal space */}
                             <div className="h-full">
-                                <QuorumCard quorum={quorum} loading={loadingQuorum} />
+                                <QuorumCard quorum={quorum} loading={loadingQuorum} variant="compact" />
                             </div>
                         </div>
                     )}

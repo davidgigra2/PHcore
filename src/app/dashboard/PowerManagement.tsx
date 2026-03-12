@@ -713,48 +713,8 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                             </div>
                         ) : (
                             <div className="space-y-8 py-2">
-                                {/* PASO 1: Datos del propietario y apoderado */}
-                                <div className="space-y-5">
-                                    <div className="space-y-3">
-                                        <Label htmlFor="ownerDoc" className="text-gray-200 text-base font-semibold block">
-                                            Número de Cédula del Propietario
-                                        </Label>
-                                        <Input
-                                            id="ownerDoc"
-                                            placeholder="Ej: 80123456"
-                                            value={ownerDoc}
-                                            onChange={(e) => setOwnerDoc(e.target.value)}
-                                            className="h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-colors"
-                                        />
-                                    </div>
-                                    <div className="space-y-3">
-                                        <Label htmlFor="repDocOp" className="text-gray-200 text-base font-semibold block">
-                                            Número de Cédula del Apoderado
-                                        </Label>
-                                        <Input
-                                            id="repDocOp"
-                                            placeholder="Ej: 12345678"
-                                            value={repDoc}
-                                            onChange={(e) => setRepDoc(e.target.value)}
-                                            className="h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-colors"
-                                        />
-                                    </div>
-                                    <div className="space-y-3">
-                                        <Label htmlFor="repNameOp" className="text-gray-200 text-base font-semibold block">
-                                            Nombre Completo del Apoderado
-                                        </Label>
-                                        <Input
-                                            id="repNameOp"
-                                            placeholder="Ej: Juan Pérez"
-                                            value={repName}
-                                            onChange={(e) => setRepName(e.target.value)}
-                                            className="h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-colors"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* PASO 2: Cámara */}
-                                {step1OperatorComplete && !capturedImage && (
+                                {/* PASO 1: Cámara Primero */}
+                                {!capturedImage && (
                                     <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
                                         <p className="text-gray-200 text-base font-semibold">Captura del Documento Físico</p>
                                         {!isCameraActive ? (
@@ -800,25 +760,66 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                     </div>
                                 )}
 
-                                {/* Vista previa */}
+                                {/* PASO 2: Vista previa y Formulario de Datos */}
                                 {capturedImage && (
-                                    <div className="space-y-4 animate-in zoom-in-95 duration-300">
-                                        <p className="text-gray-200 text-base font-semibold">Previsualización de la Captura</p>
-                                        <div className="relative aspect-[4/3] rounded-3xl overflow-hidden border-4 border-emerald-500/30 shadow-2xl">
-                                            <img src={capturedImage} alt="Vista previa" className="w-full h-full object-cover" />
-                                            <div className="absolute bottom-4 right-4 bg-emerald-500/90 text-white px-3 py-1.5 rounded-full flex items-center gap-2 text-sm font-bold shadow-lg">
-                                                <CheckCircle2 className="w-4 h-4" />
-                                                Capturado
+                                    <div className="space-y-8 animate-in zoom-in-95 duration-300">
+                                        <div className="space-y-4">
+                                            <p className="text-gray-200 text-base font-semibold">Previsualización de la Captura</p>
+                                            <div className="relative aspect-[4/3] rounded-3xl overflow-hidden border-4 border-emerald-500/30 shadow-2xl">
+                                                <img src={capturedImage} alt="Vista previa" className="w-full h-full object-cover" />
+                                                <div className="absolute bottom-4 right-4 bg-emerald-500/90 text-white px-3 py-1.5 rounded-full flex items-center gap-2 text-sm font-bold shadow-lg">
+                                                    <CheckCircle2 className="w-4 h-4" />
+                                                    Capturado
+                                                </div>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => { setIsCaptured(false); setCapturedImage(null); setIsCameraActive(true); setTimeout(startCamera, 100); }}
+                                                className="w-full h-12 rounded-xl bg-red-900/10 border border-red-500/20 text-red-400 hover:bg-red-900/20 hover:text-red-300 flex items-center justify-center gap-2"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                Volver a tomar foto
+                                            </Button>
+                                        </div>
+
+                                        <div className="space-y-5 pt-4 border-t border-white/5">
+                                            <div className="space-y-3">
+                                                <Label htmlFor="ownerDoc" className="text-gray-200 text-base font-semibold block">
+                                                    Número de Cédula del Propietario
+                                                </Label>
+                                                <Input
+                                                    id="ownerDoc"
+                                                    placeholder="Ej: 80123456"
+                                                    value={ownerDoc}
+                                                    onChange={(e) => setOwnerDoc(e.target.value)}
+                                                    className="h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-colors"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <Label htmlFor="repDocOp" className="text-gray-200 text-base font-semibold block">
+                                                    Número de Cédula del Apoderado
+                                                </Label>
+                                                <Input
+                                                    id="repDocOp"
+                                                    placeholder="Ej: 12345678"
+                                                    value={repDoc}
+                                                    onChange={(e) => setRepDoc(e.target.value)}
+                                                    className="h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-colors"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <Label htmlFor="repNameOp" className="text-gray-200 text-base font-semibold block">
+                                                    Nombre Completo del Apoderado
+                                                </Label>
+                                                <Input
+                                                    id="repNameOp"
+                                                    placeholder="Ej: Juan Pérez"
+                                                    value={repName}
+                                                    onChange={(e) => setRepName(e.target.value)}
+                                                    className="h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-colors"
+                                                />
                                             </div>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => { setIsCaptured(false); setCapturedImage(null); setIsCameraActive(true); setTimeout(startCamera, 100); }}
-                                            className="w-full h-14 rounded-2xl bg-red-900/10 border-2 border-red-500/20 text-red-400 hover:bg-red-900/20 hover:text-red-300 flex items-center justify-center gap-3"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                            Descartar y volver a tomar foto
-                                        </Button>
                                     </div>
                                 )}
 
