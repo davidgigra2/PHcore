@@ -995,9 +995,6 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                         </Button>
                                     </div>
                                 )}
-
-                                    </div>
-                                )}
                             </div>
                         )
                     ) : (
