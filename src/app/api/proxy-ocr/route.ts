@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
 
         const response = await result.response;
         const text = response.text();
+        console.log('AI Response Text:', text);
         
         // Extract JSON from the response text (in case there's markdown formatting)
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
         
         try {
             const data = JSON.parse(jsonString);
+            console.log('Parsed OCR Data:', data);
             return NextResponse.json(data);
         } catch (parseError) {
             console.error('JSON Parse Error:', parseError, 'Plain text:', text);
@@ -66,9 +68,24 @@ export async function POST(req: NextRequest) {
         }
     } catch (error: any) {
         console.error('OCR Error Details:', error);
+        
+        // Debugging: List available models via direct fetch
+        let availableModels = [];
+        try {
+            const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY!;
+            const listModels = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
+            const modelsJson = await listModels.json();
+            availableModels = modelsJson.models?.map((m: any) => m.name.replace('models/', '')) || [];
+            console.log('Available Model Names (Diagnostic):', availableModels);
+        } catch (listError) {
+            console.error('Could not list models in diagnostic:', listError);
+        }
+
         return NextResponse.json({ 
             error: error.message || 'Error processing image',
-            details: error.toString()
+            details: error.toString(),
+            availableModels: availableModels,
+            hint: "Check if 'gemini-2.0-flash' is in the availableModels list"
         }, { status: 500 });
     }
 }
