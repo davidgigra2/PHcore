@@ -452,6 +452,9 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
+    // OCR State
+    const [ocrLoading, setOcrLoading] = useState(false);
+
     // Stop camera on unmount
     useEffect(() => {
         return () => {
@@ -485,7 +488,7 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
         }
     };
 
-    const takePhoto = () => {
+    const takePhoto = async () => {
         if (videoRef.current && canvasRef.current) {
             const video = videoRef.current;
             const canvas = canvasRef.current;
@@ -498,6 +501,26 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                 setCapturedImage(dataUrl);
                 setIsCaptured(true);
                 stopCamera();
+
+                // Trigger AI OCR Extraction
+                setOcrLoading(true);
+                try {
+                    const response = await fetch('/api/proxy-ocr', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: dataUrl })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.owner_id) setOwnerDoc(data.owner_id);
+                        if (data.representative_id) setRepDoc(data.representative_id);
+                        if (data.representative_name) setRepName(data.representative_name);
+                    }
+                } catch (err) {
+                    console.error("OCR API Error:", err);
+                } finally {
+                    setOcrLoading(false);
+                }
             }
         }
     };
@@ -784,40 +807,79 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
 
                                         <div className="space-y-5 pt-4 border-t border-white/5">
                                             <div className="space-y-3">
-                                                <Label htmlFor="ownerDoc" className="text-gray-200 text-base font-semibold block">
-                                                    Número de Cédula del Propietario
-                                                </Label>
-                                                <Input
-                                                    id="ownerDoc"
-                                                    placeholder="Ej: 80123456"
-                                                    value={ownerDoc}
-                                                    onChange={(e) => setOwnerDoc(e.target.value)}
-                                                    className="h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-colors"
-                                                />
+                                                <div className="flex items-center justify-between">
+                                                    <Label htmlFor="ownerDoc" className="text-gray-200 text-base font-semibold block">
+                                                        Número de Cédula del Propietario
+                                                    </Label>
+                                                    {ocrLoading && (
+                                                        <div className="flex items-center gap-2 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30 animate-pulse">
+                                                            <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
+                                                            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider">IA</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="relative">
+                                                    <Input
+                                                        id="ownerDoc"
+                                                        placeholder={ocrLoading ? "Procesando con IA..." : "Ej: 80123456"}
+                                                        value={ownerDoc}
+                                                        onChange={(e) => setOwnerDoc(e.target.value)}
+                                                        className={cn(
+                                                            "h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-all",
+                                                            ocrLoading && "border-indigo-500/50 bg-indigo-500/5 shadow-[0_0_15px_rgba(99,102,241,0.1)]"
+                                                        )}
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="space-y-3">
-                                                <Label htmlFor="repDocOp" className="text-gray-200 text-base font-semibold block">
-                                                    Número de Cédula del Apoderado
-                                                </Label>
-                                                <Input
-                                                    id="repDocOp"
-                                                    placeholder="Ej: 12345678"
-                                                    value={repDoc}
-                                                    onChange={(e) => setRepDoc(e.target.value)}
-                                                    className="h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-colors"
-                                                />
+                                                <div className="flex items-center justify-between">
+                                                    <Label htmlFor="repDocOp" className="text-gray-200 text-base font-semibold block">
+                                                        Número de Cédula del Apoderado
+                                                    </Label>
+                                                    {ocrLoading && (
+                                                        <div className="flex items-center gap-2 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30 animate-pulse">
+                                                            <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
+                                                            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider">IA</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="relative">
+                                                    <Input
+                                                        id="repDocOp"
+                                                        placeholder={ocrLoading ? "Procesando con IA..." : "Ej: 12345678"}
+                                                        value={repDoc}
+                                                        onChange={(e) => setRepDoc(e.target.value)}
+                                                        className={cn(
+                                                            "h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-all",
+                                                            ocrLoading && "border-indigo-500/50 bg-indigo-500/5 shadow-[0_0_15px_rgba(99,102,241,0.1)]"
+                                                        )}
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="space-y-3">
-                                                <Label htmlFor="repNameOp" className="text-gray-200 text-base font-semibold block">
-                                                    Nombre Completo del Apoderado
-                                                </Label>
-                                                <Input
-                                                    id="repNameOp"
-                                                    placeholder="Ej: Juan Pérez"
-                                                    value={repName}
-                                                    onChange={(e) => setRepName(e.target.value)}
-                                                    className="h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-colors"
-                                                />
+                                                <div className="flex items-center justify-between">
+                                                    <Label htmlFor="repNameOp" className="text-gray-200 text-base font-semibold block">
+                                                        Nombre Completo del Apoderado
+                                                    </Label>
+                                                    {ocrLoading && (
+                                                        <div className="flex items-center gap-2 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30 animate-pulse">
+                                                            <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
+                                                            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider">IA</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="relative">
+                                                    <Input
+                                                        id="repNameOp"
+                                                        placeholder={ocrLoading ? "Procesando con IA..." : "Ej: Juan Pérez"}
+                                                        value={repName}
+                                                        onChange={(e) => setRepName(e.target.value)}
+                                                        className={cn(
+                                                            "h-14 text-lg bg-[#1E1E1E] border-2 border-white/15 text-white placeholder:text-gray-500 focus:border-indigo-500 rounded-xl px-4 transition-all",
+                                                            ocrLoading && "border-indigo-500/50 bg-indigo-500/5 shadow-[0_0_15px_rgba(99,102,241,0.1)]"
+                                                        )}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
