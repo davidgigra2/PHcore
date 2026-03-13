@@ -501,6 +501,7 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                 setCapturedImage(dataUrl);
                 setIsCaptured(true);
                 stopCamera();
+                setMessage(null); // Clear previous messages
 
                 // Trigger AI OCR Extraction
                 setOcrLoading(true);
@@ -995,10 +996,6 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                     </div>
                                 )}
 
-                                {message && message.type === 'error' && (
-                                    <div className="p-4 rounded-xl text-base flex items-center gap-3 font-medium bg-red-900/20 text-red-400 border border-red-500/20">
-                                        <AlertCircle className="w-5 h-5 shrink-0" />
-                                        {message.text}
                                     </div>
                                 )}
                             </div>

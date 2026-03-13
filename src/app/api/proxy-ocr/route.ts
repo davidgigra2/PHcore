@@ -49,15 +49,28 @@ export async function POST(req: NextRequest) {
 
         const response = await result.response;
         const text = response.text();
+        console.log('AI Response Text:', text);
         
         // Extract JSON from the response text (in case there's markdown formatting)
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         const jsonString = jsonMatch ? jsonMatch[0] : '{}';
-        const data = JSON.parse(jsonString);
-
-        return NextResponse.json(data);
+        
+        try {
+            const data = JSON.parse(jsonString);
+            console.log('Parsed OCR Data:', data);
+            return NextResponse.json(data);
+        } catch (parseError) {
+            console.error('JSON Parse Error:', parseError, 'Plain text:', text);
+            return NextResponse.json({ 
+                error: 'Could not parse AI response',
+                rawText: text.slice(0, 100)
+            }, { status: 500 });
+        }
     } catch (error: any) {
-        console.error('OCR Error:', error);
-        return NextResponse.json({ error: error.message || 'Error processing image' }, { status: 500 });
+        console.error('OCR Error Details:', error);
+        return NextResponse.json({ 
+            error: error.message || 'Error processing image',
+            details: error.toString()
+        }, { status: 500 });
     }
 }
