@@ -534,7 +534,12 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                             });
                         }
                     } else {
-                        setMessage({ type: 'error', text: "Error en el servicio de IA. Ingresa los datos manualmente." });
+                        const errorData = await response.json();
+                        console.error("AI OCR Error Body:", errorData);
+                        setMessage({ 
+                            type: 'error', 
+                            text: `Error IA: ${errorData.error || "No se pudo leer"}. Revisa la consola.` 
+                        });
                     }
                 } catch (err) {
                     console.error("OCR API Error:", err);
