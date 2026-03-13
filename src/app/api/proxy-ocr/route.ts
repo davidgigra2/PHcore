@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
         // Remove the data area from the base64 string
         const base64Data = image.split(',')[1] || image;
@@ -68,9 +68,25 @@ export async function POST(req: NextRequest) {
         }
     } catch (error: any) {
         console.error('OCR Error Details:', error);
+        
+        // Debugging: List available models to see what's wrong
+        let availableModels = "Unknown";
+        try {
+            const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY!;
+            const genAI = new GoogleGenerativeAI(apiKey);
+            // This is just to help the user see what's available in their terminal
+            const listModels = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
+            const modelsJson = await listModels.json();
+            console.log('Available Models for this Key:', JSON.stringify(modelsJson, null, 2));
+            availableModels = modelsJson.models?.map((m: any) => m.name).join(', ') || "None found";
+        } catch (listError) {
+            console.error('Could not list models:', listError);
+        }
+
         return NextResponse.json({ 
             error: error.message || 'Error processing image',
-            details: error.toString()
+            details: error.toString(),
+            availableModelsHint: availableModels
         }, { status: 500 });
     }
 }
