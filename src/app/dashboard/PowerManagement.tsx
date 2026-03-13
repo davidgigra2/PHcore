@@ -512,12 +512,32 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                     });
                     if (response.ok) {
                         const data = await response.json();
-                        if (data.owner_id) setOwnerDoc(data.owner_id);
-                        if (data.representative_id) setRepDoc(data.representative_id);
-                        if (data.representative_name) setRepName(data.representative_name);
+                        const hasData = data.owner_id || data.representative_id || data.representative_name;
+                        
+                        if (hasData) {
+                            if (data.owner_id) setOwnerDoc(data.owner_id);
+                            if (data.representative_id) setRepDoc(data.representative_id);
+                            if (data.representative_name) setRepName(data.representative_name);
+                            
+                            const isComplete = data.owner_id && data.representative_id && data.representative_name;
+                            setMessage({ 
+                                type: 'success', 
+                                text: isComplete 
+                                    ? "¡IA: Datos extraídos correctamente!" 
+                                    : "¡IA: Algunos datos extraídos. Por favor verifica." 
+                            });
+                        } else {
+                            setMessage({ 
+                                type: 'error', 
+                                text: "IA: No logramos leer el documento. Por favor ingresa los datos manualmente." 
+                            });
+                        }
+                    } else {
+                        setMessage({ type: 'error', text: "Error en el servicio de IA. Ingresa los datos manualmente." });
                     }
                 } catch (err) {
                     console.error("OCR API Error:", err);
+                    setMessage({ type: 'error', text: "No pudimos conectar con la IA. Ingresa los datos manualmente." });
                 } finally {
                     setOcrLoading(false);
                 }
@@ -888,9 +908,18 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                 {/* PASO 3: Finalizar */}
                                 {capturedImage && (
                                     <div className="animate-in fade-in zoom-in-95 duration-500 pt-4 space-y-3">
-                                        {message && message.type === 'success' && (
-                                            <div className="p-3 rounded-xl bg-indigo-900/20 border border-indigo-500/20 text-indigo-300 text-sm flex items-center gap-2">
-                                                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                                        {message && (
+                                            <div className={cn(
+                                                "p-3 rounded-xl border text-sm flex items-center gap-2",
+                                                message.type === 'success' 
+                                                    ? "bg-indigo-900/20 border-indigo-500/20 text-indigo-300" 
+                                                    : "bg-red-900/20 border-red-500/20 text-red-400"
+                                            )}>
+                                                {message.type === 'success' ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                                                ) : (
+                                                    <AlertCircle className="w-4 h-4 shrink-0" />
+                                                )}
                                                 {message.text}
                                             </div>
                                         )}
