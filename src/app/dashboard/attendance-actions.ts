@@ -34,7 +34,7 @@ export async function getAssemblyQuorum(assemblyId: string): Promise<number> {
     return total;
 }
 
-export async function registerAttendance(unitId: string) {
+export async function registerAttendance(unitId: string, userId?: string) {
     const supabase = await createClient();
 
     // Verify permissions (Admin/Operator only)
@@ -51,10 +51,13 @@ export async function registerAttendance(unitId: string) {
         throw new Error("Forbidden: Permission denied");
     }
 
-    // Insert (will fail if unique constraint violated, but we can ignore or handle)
+    // Prepare payload. Use userId if provided (the person physically at the assembly)
+    const payload: any = { unit_id: unitId };
+    if (userId) payload.user_id = userId;
+
     const { error } = await supabase
         .from("attendance_logs")
-        .upsert({ unit_id: unitId }, { onConflict: 'unit_id' });
+        .upsert(payload, { onConflict: 'unit_id' });
 
     if (error) {
         console.error("Error registering attendance:", error);
@@ -188,22 +191,29 @@ export async function registerAttendanceByDocument(documentNumber: string) {
  * Utilizado cuando se aprueba un nuevo poder para alguien que ya está presente.
  */
 export async function syncAttendanceForRepresentative(representativeId: string) {
-    const supabase = await createClient();
+    // IMPORTANTE: Un asambleísta puede estar otorgando poder, 
+    // pero él no tiene permisos para marcar asistencia de otros asambleístas.
+    // Usamos el cliente admin para saltar RLS y asegurar la sincronización.
+    const admin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     // 1. Verificar si el representante ya tiene presencia en la asamblea
-    const { data: existingLogs } = await supabase
+    // (Buscamos si su user_id está en cualquier unidad con asistencia)
+    const { data: existingLogs } = await admin
         .from("attendance_logs")
         .select("id")
         .eq("user_id", representativeId)
         .limit(1);
 
     if (!existingLogs || existingLogs.length === 0) {
-        // El representante no ha marcado asistencia aún (no está presente)
+        // El representante no ha marcado asistencia aún (no está presente físicamente)
         return { success: false, message: "Representante no presente." };
     }
 
     // 2. Obtener todas las unidades que representa ahora
-    const { data: units } = await supabase
+    const { data: units } = await admin
         .from("units")
         .select("id")
         .eq("representative_id", representativeId);
@@ -211,14 +221,20 @@ export async function syncAttendanceForRepresentative(representativeId: string) 
     if (!units || units.length === 0) return { success: false, message: "No representa unidades." };
 
     // 3. Insertar asistencia para las unidades faltantes
+    // Aseguramos que guardamos el user_id para futuras detecciones
     const logsToInsert = units.map(u => ({ 
         unit_id: u.id, 
         user_id: representativeId 
     }));
 
-    const { error } = await supabase
+    const { error } = await admin
         .from("attendance_logs")
         .upsert(logsToInsert, { onConflict: 'unit_id', ignoreDuplicates: true });
+
+    if (error) {
+        console.error("Error syncing attendance for representative:", error);
+        return { success: false, message: error.message };
+    }
 
     revalidatePath("/dashboard");
     return { success: true };
