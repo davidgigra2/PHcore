@@ -441,6 +441,19 @@ export async function registerProxy(params: {
                 return { success: false, message: `El propietario con cédula ${params.externalDoc} no tiene unidades registradas en este sistema.` };
             }
 
+            // ── NUEVA VALIDACIÓN: Verificar si el propietario ya tiene asistencia marcada ──
+            const unitIds = ownerUnits.map((u: any) => u.id);
+            const { data: attendanceRecord } = await admin
+                .from('attendance_logs')
+                .select('unit_id')
+                .in('unit_id', unitIds)
+                .limit(1)
+                .maybeSingle();
+
+            if (attendanceRecord) {
+                return { success: false, message: "No permitido: El propietario ya tiene un registro de asistencia. Un propietario presente no puede delegar su voto por poder." };
+            }
+
             // Verificar que el propietario no tenga ya un poder activo
             const { data: existingProxy } = await admin
                 .from('proxies')
