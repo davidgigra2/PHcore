@@ -55,7 +55,7 @@ export default async function AssemblyDashboard({ params }: { params: Promise<{ 
         admin.from('users').select('id, full_name, email, username').eq('assembly_id', id).eq('role', 'OPERATOR'),
         admin.from('attendance_logs').select('unit_id, units(number, coefficient, assembly_id)').not('units', 'is', null),
         admin.from('votes').select('id, title, status, created_at, vote_options(id, text, votes_count), ballots(user_id)').order('created_at', { ascending: false }).limit(10),
-        admin.from('proxies').select('principal_id, representative_id, type, is_external').eq('status', 'APPROVED'),
+        admin.from('proxies').select('principal_id, representative_id, type, is_external, principal:users!proxies_principal_id_fkey(document_number)').eq('status', 'APPROVED'),
     ]);
 
     // Filter attendance to this assembly only
@@ -73,10 +73,14 @@ export default async function AssemblyDashboard({ params }: { params: Promise<{ 
     const openVotes = (votes || []).filter((v: any) => v.status === 'OPEN').length;
     const closedVotes = (votes || []).filter((v: any) => v.status === 'CLOSED').length;
 
-    // Build a map: representative_id → { type, is_external } for quick lookup in UnitsTab
+    // Build a map: owner_document_number → { type, is_external } for quick lookup in UnitsTab
     const proxyMap: Record<string, { type: string; is_external: boolean }> = {};
     for (const p of (proxies || [])) {
-        if (p.representative_id) proxyMap[p.representative_id] = { type: p.type, is_external: p.is_external };
+        const doc = (p as any).principal?.document_number;
+        if (doc) {
+            const cleanDoc = doc.replace('DUPLICATE_', '').trim().toUpperCase();
+            proxyMap[cleanDoc] = { type: p.type, is_external: p.is_external };
+        }
     }
 
     return (

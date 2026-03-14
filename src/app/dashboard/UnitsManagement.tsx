@@ -307,7 +307,7 @@ export default function UnitsManagement({
                                                                 </p>
                                                             )}
                                                         </div>
-                                                            {proxy && !isSelf && (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && (
+                                                            {proxy && !isSelf && (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'OPERATOR') && (
                                                                 <button
                                                                     onClick={() => handleRevoke(u.id)}
                                                                     disabled={revoking === u.id}

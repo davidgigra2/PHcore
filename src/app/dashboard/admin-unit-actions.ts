@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { clearAttendanceOnRevocation } from "./attendance-actions";
 
 function getServiceClient() {
     const { createClient: sc } = require('@supabase/supabase-js');
@@ -137,6 +138,9 @@ export async function updateUnitOwner(unitId: string, data: {
 
 // ─── Revoke Proxy ──────────────────────────────────────────────────────────
 async function restoreProxyRights(admin: any, principalId: string, representativeId: string) {
+    // 1. Limpiar asistencia de las unidades si el dueño no está presente físicamente
+    await clearAttendanceOnRevocation(admin, principalId, representativeId);
+
     const { data: principal } = await admin.from("users").select("document_number").eq("id", principalId).single();
     if (!principal) return;
 

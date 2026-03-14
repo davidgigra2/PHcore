@@ -181,3 +181,103 @@ export async function registerAttendanceByDocument(documentNumber: string) {
         return { success: false, message: `Error Interno: ${error.message || JSON.stringify(error)}` };
     }
 }
+
+/**
+ * Automáticamente marca asistencia para todas las unidades de un representante
+ * si este ya tiene al menos una unidad con asistencia registrada.
+ * Utilizado cuando se aprueba un nuevo poder para alguien que ya está presente.
+ */
+export async function syncAttendanceForRepresentative(representativeId: string) {
+    const supabase = await createClient();
+
+    // 1. Verificar si el representante ya tiene presencia en la asamblea
+    const { data: existingLogs } = await supabase
+        .from("attendance_logs")
+        .select("id")
+        .eq("user_id", representativeId)
+        .limit(1);
+
+    if (!existingLogs || existingLogs.length === 0) {
+        // El representante no ha marcado asistencia aún (no está presente)
+        return { success: false, message: "Representante no presente." };
+    }
+
+    // 2. Obtener todas las unidades que representa ahora
+    const { data: units } = await supabase
+        .from("units")
+        .select("id")
+        .eq("representative_id", representativeId);
+
+    if (!units || units.length === 0) return { success: false, message: "No representa unidades." };
+
+    // 3. Insertar asistencia para las unidades faltantes
+    const logsToInsert = units.map(u => ({ 
+        unit_id: u.id, 
+        user_id: representativeId 
+    }));
+
+    const { error } = await supabase
+        .from("attendance_logs")
+        .upsert(logsToInsert, { onConflict: 'unit_id', ignoreDuplicates: true });
+
+    revalidatePath("/dashboard");
+    return { success: true };
+}
+
+/**
+ * Limpia la asistencia de las unidades asociadas a un propietario (principalId)
+ * que estaban bajo el poder de un representante (representativeId),
+ * SIEMPRE Y CUANDO el propietario no haya marcado asistencia por su cuenta 
+ * (es decir, no esté presente físicamente).
+ */
+export async function clearAttendanceOnRevocation(admin: any, principalId: string, representativeId: string) {
+    try {
+        // 1. Obtener la cédula del propietario
+        const { data: principal } = await admin
+            .from("users")
+            .select("document_number")
+            .eq("id", principalId)
+            .single();
+
+        if (!principal) return;
+
+        // 2. Verificar si el propietario tiene asistencia marcada por sí mismo
+        // (Buscamos logs donde el user_id sea el del propietario)
+        const { data: ownerPresent } = await admin
+            .from("attendance_logs")
+            .select("id")
+            .eq("user_id", principalId)
+            .limit(1);
+
+        if (ownerPresent && ownerPresent.length > 0) {
+            // El propietario está presente físicamente, no limpiamos asistencia
+            return;
+        }
+
+        // 3. Identificar las unidades que el representante tiene de ese propietario
+        const { data: units } = await admin
+            .from("units")
+            .select("id, owner_document_number")
+            .eq("representative_id", representativeId);
+
+        if (!units) return;
+
+        const principalDoc = String(principal.document_number || '').trim().toLowerCase();
+        const affectedUnitIds = units
+            .filter((u: any) => String(u.owner_document_number || '').trim().toLowerCase() === principalDoc)
+            .map((u: any) => u.id);
+
+        if (affectedUnitIds.length === 0) return;
+
+        // 4. Eliminar los logs de asistencia de esas unidades
+        await admin
+            .from("attendance_logs")
+            .delete()
+            .in("unit_id", affectedUnitIds);
+
+        console.log(`Asistencia limpiada para ${affectedUnitIds.length} unidades de ${principalDoc} tras revocación.`);
+        
+    } catch (err) {
+        console.error("Error en clearAttendanceOnRevocation:", err);
+    }
+}

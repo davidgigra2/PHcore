@@ -5,7 +5,7 @@ import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { headers } from "next/headers";
 import crypto from 'crypto';
 import { sendEmail, sendSMS } from "@/lib/notifications";
-import { registerAttendanceByDocument } from "./attendance-actions";
+import { registerAttendanceByDocument, syncAttendanceForRepresentative, clearAttendanceOnRevocation } from "./attendance-actions";
 
 export type ProxyType = 'DIGITAL' | 'PDF' | 'OPERATOR';
 
@@ -113,6 +113,9 @@ async function activateProxyRights(admin: any, principalId: string, representati
 
 // Helper to restore rights
 async function restoreProxyRights(admin: any, principalId: string, representativeId: string) {
+    // 1. Limpiar asistencia de las unidades si el dueño no está presente físicamente
+    await clearAttendanceOnRevocation(admin, principalId, representativeId);
+
     const { data: principal } = await admin.from("users").select("document_number").eq("id", principalId).single();
     if (!principal) return;
 
@@ -386,6 +389,8 @@ export async function verifyProxyOTP(signatureId: string, otpCode: string) {
     await admin.from("proxies").update({ status: 'APPROVED' }).eq("id", intent.proxy_id);
     if (finalRepresentativeId) {
         await activateProxyRights(admin, user.id, finalRepresentativeId);
+        // Sync attendance if representative is already present
+        await syncAttendanceForRepresentative(finalRepresentativeId);
     }
 
     revalidatePath("/dashboard");
@@ -535,6 +540,8 @@ export async function registerProxy(params: {
         // Activar derechos del apoderado sobre las unidades del propietario real
         if (representativeId) {
             await activateProxyRights(admin, principalId, representativeId);
+            // Sync attendance if representative is already present
+            await syncAttendanceForRepresentative(representativeId);
         }
 
         revalidatePath("/dashboard");
