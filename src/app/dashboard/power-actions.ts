@@ -5,6 +5,7 @@ import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { headers } from "next/headers";
 import crypto from 'crypto';
 import { sendEmail, sendSMS } from "@/lib/notifications";
+import { registerAttendanceByDocument } from "./attendance-actions";
 
 export type ProxyType = 'DIGITAL' | 'PDF' | 'OPERATOR';
 
@@ -524,7 +525,28 @@ export async function registerProxy(params: {
         }
 
         revalidatePath("/dashboard");
-        return { success: true, message: "Poder registrado exitosamente." };
+
+        // ─────────────────────────────────────────────────────────────
+        // NEW: Marcación automática de asistencia del apoderado
+        // ─────────────────────────────────────────────────────────────
+        let attendanceMsg = "";
+        if (params.type === 'OPERATOR' && params.representativeDoc) {
+            try {
+                const attRes = await registerAttendanceByDocument(params.representativeDoc);
+                if (attRes.success) {
+                    attendanceMsg = " y asistencia marcada correctamente.";
+                } else if (attRes.alreadyRegistered) {
+                    attendanceMsg = " (La asistencia ya estaba registrada).";
+                } else {
+                    console.warn("Fallo marcación automática de asistencia:", attRes.message);
+                    attendanceMsg = " (Aviso: No se pudo marcar asistencia automáticamente).";
+                }
+            } catch (err) {
+                console.error("Error en marcación automática de asistencia:", err);
+            }
+        }
+
+        return { success: true, message: `Poder registrado exitosamente${attendanceMsg}` };
 
     } catch (error: any) {
         console.error("Error registering proxy:", error);
