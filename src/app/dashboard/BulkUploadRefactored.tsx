@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { bulkUploadUnits, type UnitRow } from './actions';
+import { bulkUploadUnits, type UnitRow } from '@/app/dashboard/admin-unit-actions';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
 
 interface Props { assemblyId: string; }
 
-export default function BulkUploadUnits({ assemblyId }: Props) {
+export default function BulkUploadRefactored({ assemblyId }: Props) {
     const [preview, setPreview] = useState<UnitRow[]>([]);
     const [fileName, setFileName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -62,10 +62,10 @@ export default function BulkUploadUnits({ assemblyId }: Props) {
     return (
         <div className="space-y-4">
             {/* CSV format hint */}
-            <div className="bg-violet-500/5 border border-violet-500/20 rounded-lg p-3">
-                <p className="text-violet-300 text-xs font-medium mb-1">Formato CSV requerido:</p>
-                <code className="text-violet-400 text-xs">number,coefficient,owner_name,document_number,email,owner_phone</code>
-                <p className="text-gray-500 text-xs mt-1">Las columnas <code>document_number</code> y <code>email</code> son opcionales (pero necesarias para crear el acceso al usuario automáticamente).</p>
+            <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-lg p-3">
+                <p className="text-indigo-300 text-xs font-medium mb-1">Formato CSV requerido:</p>
+                <code className="text-indigo-400 text-xs text-wrap break-all">number,coefficient,owner_name,document_number,email,owner_phone</code>
+                <p className="text-gray-500 text-[10px] mt-1">El documento es obligatorio. Email y teléfono son opcionales (pero necesarios para crear el acceso automáticamente).</p>
             </div>
 
             {/* Drop zone */}
@@ -74,11 +74,11 @@ export default function BulkUploadUnits({ assemblyId }: Props) {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={handleDrop}
                     onClick={() => inputRef.current?.click()}
-                    className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-all"
+                    className="border-2 border-dashed border-white/5 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all"
                 >
-                    <FileSpreadsheet className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                    <FileSpreadsheet className="w-8 h-8 text-gray-700 mx-auto mb-2" />
                     <p className="text-gray-400 text-sm font-medium">Arrastra tu CSV aquí</p>
-                    <p className="text-gray-600 text-xs mt-1">o haz clic para seleccionar el archivo</p>
+                    <p className="text-gray-600 text-[10px] mt-1">o haz clic para seleccionar</p>
                     <input
                         ref={inputRef}
                         type="file"
@@ -93,32 +93,31 @@ export default function BulkUploadUnits({ assemblyId }: Props) {
             {preview.length > 0 && (
                 <div>
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-gray-300">
-                            <span className="font-medium text-white">{preview.length}</span> unidades listas para importar
-                            <span className="text-gray-500 ml-2">({fileName})</span>
+                        <p className="text-xs text-gray-400">
+                            <span className="font-medium text-white">{preview.length}</span> unidades listas ({fileName})
                         </p>
-                        <button onClick={() => { setPreview([]); setFileName(''); }} className="text-gray-500 hover:text-red-400 transition-colors">
+                        <button onClick={() => { setPreview([]); setFileName(''); }} className="text-gray-600 hover:text-red-400 transition-colors">
                             <X className="w-4 h-4" />
                         </button>
                     </div>
-                    <div className="rounded-lg border border-white/5 overflow-hidden max-h-56 overflow-y-auto">
-                        <table className="w-full text-xs">
+                    <div className="rounded-lg border border-white/5 overflow-hidden max-h-56 overflow-y-auto bg-black/20">
+                        <table className="w-full text-[10px]">
                             <thead className="sticky top-0 bg-[#1A1A1A]">
                                 <tr>
                                     {['Unidad', 'Coeficiente', 'Propietario', 'Documento', 'Email', 'Celular'].map(h => (
-                                        <th key={h} className="text-left px-3 py-2 text-gray-400 font-medium">{h}</th>
+                                        <th key={h} className="text-left px-3 py-2 text-gray-500 font-medium">{h}</th>
                                     ))}
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-white/5">
                                 {preview.map((row, i) => (
-                                    <tr key={i} className="border-t border-white/5">
-                                        <td className="px-3 py-2 text-white font-mono">{row.number}</td>
-                                        <td className="px-3 py-2 text-gray-400">{row.coefficient}</td>
-                                        <td className="px-3 py-2 text-gray-300">{row.owner_name}</td>
-                                        <td className="px-3 py-2 text-gray-400">{row.document_number || '—'}</td>
-                                        <td className="px-3 py-2 text-gray-400 truncate max-w-[150px]">{row.email || '—'}</td>
-                                        <td className="px-3 py-2 text-gray-400">{row.owner_phone || '—'}</td>
+                                    <tr key={i}>
+                                        <td className="px-3 py-2 text-indigo-300 font-mono text-[10px]">{row.number}</td>
+                                        <td className="px-3 py-2 text-gray-500">{row.coefficient}</td>
+                                        <td className="px-3 py-2 text-gray-400 truncate max-w-[120px]">{row.owner_name}</td>
+                                        <td className="px-3 py-2 text-gray-500">{row.document_number || '—'}</td>
+                                        <td className="px-3 py-2 text-gray-500 truncate max-w-[120px]">{row.email || '—'}</td>
+                                        <td className="px-3 py-2 text-gray-500">{row.owner_phone || '—'}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -128,9 +127,9 @@ export default function BulkUploadUnits({ assemblyId }: Props) {
                     <button
                         onClick={handleUpload}
                         disabled={loading}
-                        className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                        className="mt-3 w-full flex items-center justify-center gap-2 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-all"
                     >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                         {loading ? 'Importando...' : `Importar ${preview.length} unidades`}
                     </button>
                 </div>
@@ -140,15 +139,19 @@ export default function BulkUploadUnits({ assemblyId }: Props) {
             {result && (
                 <div className="space-y-2">
                     <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <p className="text-emerald-300 text-sm">{result.created} unidades importadas correctamente</p>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <p className="text-emerald-300 text-xs">{result.created} unidades importadas</p>
                     </div>
-                    {result.errors.map((err, i) => (
-                        <div key={i} className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                            <p className="text-red-300 text-xs">{err}</p>
+                    {result.errors.length > 0 && (
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                            {result.errors.map((err, i) => (
+                                <div key={i} className="flex items-start gap-2 p-2 bg-red-500/5 border border-red-500/10 rounded-lg">
+                                    <AlertCircle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
+                                    <p className="text-red-400 text-[10px]">{err}</p>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    )}
                 </div>
             )}
         </div>

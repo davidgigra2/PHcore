@@ -18,7 +18,10 @@ import AdminVoteControls from './AdminVoteControls';
 import VoteResults from './VoteResults';
 import VoteInterface from './VoteInterface';
 import OperatorAttendance from './OperatorAttendance';
+import UnitsManagement from './UnitsManagement';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { LayoutDashboard, Home as HomeIcon } from "lucide-react";
 
 interface DashboardClientProps {
     user: any;
@@ -32,6 +35,9 @@ interface DashboardClientProps {
     isAdmin: boolean;
     isOperator: boolean;
     asistenciaRegistrada: boolean; // NEW: Passed from page.tsx (Backend)
+    allAssemblyUnits: any[];
+    proxyMap: Record<string, { type: string; is_external: boolean }>;
+    assemblyId: string | null;
 }
 
 export default function DashboardClient({
@@ -45,7 +51,10 @@ export default function DashboardClient({
     displayUnit,
     isAdmin,
     isOperator,
-    asistenciaRegistrada // NEW: prop instead of state
+    asistenciaRegistrada, // NEW: prop instead of state
+    allAssemblyUnits,
+    proxyMap,
+    assemblyId
 }: DashboardClientProps) {
 
     const supabase = useRef(createClient()).current;
@@ -64,11 +73,10 @@ export default function DashboardClient({
 
     // Quorum: fetch inicial + broadcast multiplexado sobre el mismo WebSocket
     useEffect(() => {
-        if (!userProfile?.assembly_id) {
+        if (!assemblyId) {
             setLoadingQuorum(false);
             return;
         }
-        const assemblyId = userProfile.assembly_id;
 
         getAssemblyQuorum(assemblyId)
             .then((total) => { setQuorum(total); })
@@ -97,20 +105,19 @@ export default function DashboardClient({
             supabase.removeChannel(channel);
             quorumChannelRef.current = null;
         };
-    }, [userProfile?.assembly_id, supabase]);
+    }, [assemblyId, supabase]);
 
     const handleAttendanceSuccess = useCallback(async () => {
-        if (!userProfile?.assembly_id) return;
-        const total = await getAssemblyQuorum(userProfile.assembly_id);
+        if (!assemblyId) return;
+        const total = await getAssemblyQuorum(assemblyId);
         setQuorum(total);
         quorumChannelRef.current?.send({ type: 'broadcast', event: 'quorum_update', payload: { quorum: total } });
         quorumChannelRef.current?.send({ type: 'broadcast', event: 'attendance_registered', payload: {} });
-    }, [userProfile?.assembly_id]);
+    }, [assemblyId]);
 
     // Realtime: broadcast desde admin + postgres_changes como fallback
     useEffect(() => {
-        if (!userProfile?.assembly_id) return;
-        const assemblyId = userProfile.assembly_id;
+        if (!assemblyId) return;
 
         const refreshVotes = async () => {
             const fresh = await getVotesForDashboard(assemblyId);
@@ -148,7 +155,7 @@ export default function DashboardClient({
             supabase.removeChannel(channel);
             votesChannelRef.current = null;
         };
-    }, [userProfile?.assembly_id, supabase]);
+    }, [assemblyId, supabase]);
 
     const handleUserVote = useCallback((voteId: string) => {
         setLocalVotes(prev => prev.map(v =>
@@ -157,11 +164,11 @@ export default function DashboardClient({
     }, [user.id]);
 
     const handleVoteAction = useCallback(async () => {
-        if (!userProfile?.assembly_id) return;
-        const fresh = await getVotesForDashboard(userProfile.assembly_id);
+        if (!assemblyId) return;
+        const fresh = await getVotesForDashboard(assemblyId);
         setLocalVotes(fresh);
         votesChannelRef.current?.send({ type: 'broadcast', event: 'votes_update', payload: { votes: fresh } });
-    }, [userProfile?.assembly_id]);
+    }, [assemblyId]);
 
 
     return (
@@ -239,192 +246,247 @@ export default function DashboardClient({
                     </div>
                 </div>
 
-                {/* Content Section */}
-                <div className={cn(
-                    "grid gap-6 items-start",
-                    isUser && !isAttendanceRegistered ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1"
-                )}>
-                    {/* ASAMBLEÍSTA: QR (LEFT COLUMN on Desktop before attendance) */}
-                    {isUser && !isAttendanceRegistered && (
-                        <div className="lg:col-span-1 animate-in fade-in slide-in-from-top-4 duration-500">
-                            <UserQRCard
-                                documentNumber={userProfile?.document_number}
-                                username={userProfile?.username || user.email}
-                                unitNumber={displayUnit}
-                            />
-                        </div>
-                    )}
+                {/* Content Section or Tabs */}
+                {isOperator ? (
+                    <Tabs defaultValue="home" className="space-y-6">
+                        <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl">
+                            <TabsTrigger value="home" className="flex items-center gap-2 py-2 px-6 rounded-lg data-[state=active]:bg-violet-500 data-[state=active]:text-white text-gray-400 transition-all text-sm font-bold">
+                                <LayoutDashboard className="w-4 h-4" /> Inicio
+                            </TabsTrigger>
+                            <TabsTrigger value="units" className="flex items-center gap-2 py-2 px-6 rounded-lg data-[state=active]:bg-violet-500 data-[state=active]:text-white text-gray-400 transition-all text-sm font-bold">
+                                <HomeIcon className="w-4 h-4" /> Unidades
+                            </TabsTrigger>
+                        </TabsList>
 
-                    {/* ASAMBLEÍSTA: Success Banner & Quorum side by side after attendance */}
-                    {isUser && isAttendanceRegistered && (
-                        <div className="grid grid-cols-2 gap-3 sm:gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                            <Card className="bg-emerald-950/20 border-2 border-emerald-500/30 overflow-hidden shadow-2xl shadow-emerald-500/10 rounded-2xl md:rounded-3xl flex flex-col justify-center !p-1 md:!p-6 !gap-0">
-                                <CardContent className="!p-1 md:!p-6 flex flex-col items-center text-center gap-1 md:gap-4 justify-center">
-                                    <div className="w-8 h-8 md:w-16 md:h-16 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                                        <CheckCircle2 className="w-5 h-5 md:w-10 md:h-10 text-emerald-400" />
-                                    </div>
-                                    <div className="space-y-0.5 md:space-y-2">
-                                        <h3 className="text-[13px] sm:text-lg md:text-2xl font-black text-white leading-tight">Asistencia registrada</h3>
-                                        <p className="text-emerald-50/80 text-[10px] md:text-base max-w-[150px] md:max-w-xs mx-auto leading-tight md:leading-relaxed">
-                                            Participación confirmada.
-                                        </p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Quorum Card sharing the horizontal space */}
-                            <div className="h-full">
-                                <QuorumCard quorum={quorum} loading={loadingQuorum} variant="compact" />
+                        <TabsContent value="home" className="space-y-8 mt-0 focus-visible:ring-0 animate-in fade-in duration-500">
+                            <div className={cn(
+                                "grid gap-6 items-start",
+                                "grid-cols-1 lg:grid-cols-3"
+                            )}>
+                                {/* Indicators (Quorum) */}
+                                <div className="lg:col-span-1">
+                                    <QuorumCard quorum={quorum} loading={loadingQuorum} />
+                                </div>
+                                
+                                {/* Operator Attendance Module */}
+                                <div className="lg:col-span-2">
+                                     <OperatorAttendance assemblyId={assemblyId || undefined} onAttendanceSuccess={handleAttendanceSuccess} />
+                                </div>
                             </div>
-                        </div>
-                    )}
 
-                    {/* INDICATORS SECTION (Only show if there are indicators to display) */}
-                    {(isAdmin || !(isUser && isAttendanceRegistered) || (!isUser && !isAdmin && !isOperator)) && (
+                            {/* Power Management Section */}
+                            <PowerManagement
+                                userId={user.id}
+                                userRole={userProfile?.role}
+                                givenProxy={givenProxy}
+                                receivedProxies={powerStats?.representedUnits || []}
+                                ownWeight={powerStats?.ownWeight || 0}
+                            />
+
+                            {/* Voting Section */}
+                            <div className="space-y-6 pt-0">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-xl md:text-2xl font-black tracking-tight">Votaciones en Curso</h2>
+                                    <div className="h-0.5 flex-1 bg-white/5" />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {localVotes && localVotes.length > 0 ? (
+                                        localVotes.map((vote) => (
+                                            <VoteCard 
+                                                key={vote.id} 
+                                                vote={vote} 
+                                                user={user} 
+                                                userProfile={userProfile} 
+                                                handleVoteAction={handleVoteAction} 
+                                                handleUserVote={handleUserVote} 
+                                                isAdmin={isAdmin} 
+                                                supabase={supabase} 
+                                            />
+                                        ))
+                                    ) : (
+                                        <Card className="col-span-full bg-[#121212] border-white/5 border-dashed rounded-3xl">
+                                            <CardContent className="py-16 text-center text-gray-500">
+                                                No hay votaciones activas en este momento.
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="units" className="mt-0 focus-visible:ring-0 animate-in fade-in duration-500">
+                            <div className="bg-white/5 rounded-2xl border border-white/10 p-6">
+                                <UnitsManagement 
+                                    assemblyId={userProfile?.assembly_id} 
+                                    units={allAssemblyUnits} 
+                                    proxyMap={proxyMap} 
+                                    userRole={userProfile?.role}
+                                />
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                ) : (
+                    <div className="space-y-8">
+                        {/* Standard View for User/Admin */}
                         <div className={cn(
-                            "grid gap-4 md:gap-6",
-                            isUser && !isAttendanceRegistered
-                                ? "lg:col-span-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
-                                : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                        )} style={{ padding: '0px' }}>
-                        {isAdmin && (
-                            <Link href="/dashboard/reports" className="group h-full">
-                                <Card className="bg-indigo-950/20 border-indigo-500/20 hover:bg-indigo-900/30 transition-all cursor-pointer h-full shadow-lg rounded-2xl">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-indigo-400 flex items-center gap-2 text-base font-bold uppercase tracking-wider">
-                                            <FileBarChart className="w-5 h-5" />
-                                            Informes e Estadísticas
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="text-2xl font-black text-white group-hover:translate-x-1 transition-transform">Ver Reportes →</div>
-                                        <p className="text-sm text-gray-400 mt-2">Asistencia, Votos, Poderes</p>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        )}
+                            "grid gap-6 items-start",
+                            isUser && !isAttendanceRegistered ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1"
+                        )}>
+                            {/* ASAMBLEÍSTA: QR */}
+                            {isUser && !isAttendanceRegistered && (
+                                <div className="lg:col-span-1 animate-in fade-in slide-in-from-top-4 duration-500">
+                                    <UserQRCard
+                                        documentNumber={userProfile?.document_number}
+                                        username={userProfile?.username || user.email}
+                                        unitNumber={displayUnit}
+                                    />
+                                </div>
+                            )}
 
-                        {/* Only show standard quorum here if we haven't already shown it side-by-side with Attendance */}
-                        {!(isUser && isAttendanceRegistered) && (
-                            <QuorumCard quorum={quorum} loading={loadingQuorum} />
-                        )}
-
-                        {/* Coefficient Card removed per user request, info is now in the Unidad modal */}
-
-                        {!isUser && !isAdmin && !isOperator && (
-                            <Card className="bg-[#121212] border-white/5 shadow-lg rounded-2xl">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-gray-400 text-xs font-black uppercase tracking-widest">Unidades</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl md:text-3xl font-black text-white">0</div>
-                                    <p className="text-xs md:text-sm text-gray-500 mt-1 md:mt-2">No tienes propiedades asignadas</p>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
-                    )}
-                </div>
-
-                {/* 3. Power Management Section (CONDITIONAL FOR USER) */}
-                {!isAdmin && !(isUser && isAttendanceRegistered) && (
-                    <PowerManagement
-                        userId={user.id}
-                        userRole={userProfile?.role}
-                        givenProxy={givenProxy}
-                        receivedProxies={powerStats?.representedUnits || []}
-                        ownWeight={powerStats?.ownWeight || 0}
-                    />
-                )}
-
-                {/* 4. Operator Section */}
-                {isOperator && (
-                    <div className="grid grid-cols-1 gap-6">
-                        <OperatorAttendance assemblyId={userProfile?.assembly_id} onAttendanceSuccess={handleAttendanceSuccess} />
-                    </div>
-                )}
-
-                {/* 5. Voting Section */}
-                {(!isUser || isAttendanceRegistered) && (
-                    <div className="space-y-6 pt-0">
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-xl md:text-2xl font-black tracking-tight">{isAdmin ? "Gestión de Votaciones" : "Votaciones en Curso"}</h2>
-                            <div className="h-0.5 flex-1 bg-white/5" />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {isAdmin && <CreateVoteForm assemblyId={userProfile?.assembly_id || ''} onVoteCreated={handleVoteAction} />}
-
-                            {localVotes && localVotes.map((vote) => {
-                                const hasVoted = vote.ballots && vote.ballots.some((b: any) => b.user_id === user.id);
-                                const isDraft = vote.status === 'DRAFT';
-                                const isPaused = vote.status === 'PAUSED';
-                                const isClosed = vote.status === 'CLOSED';
-
-                                if (isAdmin && isPaused) {
-                                    return <EditVoteForm key={vote.id} vote={vote} onActionComplete={handleVoteAction} />;
-                                }
-
-                                return (
-                                    <Card key={vote.id} className={cn(
-                                        "bg-[#121212] border-white/5 shadow-2xl rounded-3xl overflow-hidden transition-all duration-300 hover:border-indigo-500/30",
-                                        isClosed ? 'opacity-60 grayscale' : ''
-                                    )}>
-                                        <div className="h-2 w-full bg-gradient-to-r from-indigo-600 to-indigo-400" />
-                                        <CardHeader className="pb-3">
-                                            <div className="flex justify-between items-start gap-4">
-                                                <CardTitle className="text-white text-lg md:text-xl font-bold leading-snug">{vote.title}</CardTitle>
-                                                <div className="flex gap-2 shrink-0">
-                                                    {isDraft && <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-500/20 text-gray-400 border border-gray-500/20 font-black tracking-wider">BORRADOR</span>}
-                                                    {isPaused && <span className="px-2 py-0.5 rounded-full text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 font-black tracking-wider uppercase">PAUSER</span>}
-                                                    {isClosed && <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500/20 text-red-400 border border-red-500/20 font-black tracking-wider">CERRADA</span>}
-                                                    {vote.status === 'OPEN' && <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-black tracking-wider animate-pulse">ABIERTA</span>}
-                                                </div>
+                            {/* ASAMBLEÍSTA: Success Banner & Quorum */}
+                            {isUser && isAttendanceRegistered && (
+                                <div className="grid grid-cols-2 gap-3 sm:gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                                    <Card className="bg-emerald-950/20 border-2 border-emerald-500/30 overflow-hidden shadow-2xl shadow-emerald-500/10 rounded-2xl md:rounded-3xl flex flex-col justify-center !p-1 md:!p-6 !gap-0">
+                                        <CardContent className="!p-1 md:!p-6 flex flex-col items-center text-center gap-1 md:gap-4 justify-center">
+                                            <div className="w-8 h-8 md:w-16 md:h-16 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                                <CheckCircle2 className="w-5 h-5 md:w-10 md:h-10 text-emerald-400" />
                                             </div>
-                                        </CardHeader>
-                                        <CardContent className="space-y-6">
-                                            <p className="text-gray-400 text-sm md:text-base leading-relaxed">{vote.description || "Sin descripción adicional."}</p>
-
-                                            {isAdmin && <AdminVoteControls voteId={vote.id} status={vote.status} onActionComplete={handleVoteAction} />}
-
-                                            {(isAdmin || isClosed || hasVoted) && (
-                                                <VoteResults voteId={vote.id} options={vote.vote_options} supabase={supabase} />
-                                            )}
-
-                                            {!isAdmin && !isDraft && !isClosed && vote.status === 'OPEN' && (
-                                                <div className="pt-4 border-t border-white/5">
-                                                    {hasVoted ? (
-                                                        <Button disabled className="w-full h-14 bg-emerald-500/10 text-emerald-500 border-2 border-emerald-500/20 rounded-2xl font-bold flex items-center justify-center gap-2">
-                                                            <CheckCircle2 className="w-5 h-5" />
-                                                            Voto Registrado Correctamente
-                                                        </Button>
-                                                    ) : (
-                                                        <VoteInterface vote={vote} userRole={userProfile?.role} userId={user.id} onVoteSuccess={() => handleUserVote(vote.id)} />
-                                                    )}
-                                                </div>
-                                            )}
+                                            <div className="space-y-0.5 md:space-y-2">
+                                                <h3 className="text-[13px] sm:text-lg md:text-2xl font-black text-white leading-tight">Asistencia registrada</h3>
+                                                <p className="text-emerald-50/80 text-[10px] md:text-base max-w-[150px] md:max-w-xs mx-auto leading-tight md:leading-relaxed">
+                                                    Participación confirmada.
+                                                </p>
+                                            </div>
                                         </CardContent>
                                     </Card>
-                                )
-                            })}
+                                    <div className="h-full">
+                                        <QuorumCard quorum={quorum} loading={loadingQuorum} variant="compact" />
+                                    </div>
+                                </div>
+                            )}
 
-                            {!isAdmin && (!localVotes || localVotes.length === 0) && (
-                                <div className="col-span-full">
-                                    <Card className="bg-[#121212] border-white/5 border-dashed rounded-3xl">
-                                        <CardContent className="py-16 md:py-24 text-center">
-                                            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
-                                                <FileBarChart className="w-10 h-10 text-gray-600" />
-                                            </div>
-                                            <p className="text-gray-500 font-medium text-lg">No hay votaciones activas en este momento.</p>
-                                            <p className="text-sm text-gray-600 mt-2">Mantente atento a las instrucciones del administrador.</p>
-                                        </CardContent>
-                                    </Card>
+                            {/* Indicators */}
+                            {(isAdmin || !(isUser && isAttendanceRegistered) || (!isUser && !isAdmin)) && (
+                                <div className={cn(
+                                    "grid gap-4 md:gap-6",
+                                    isUser && !isAttendanceRegistered
+                                        ? "lg:col-span-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+                                        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                                )}>
+                                    {isAdmin && (
+                                        <Link href="/dashboard/reports" className="group">
+                                            <Card className="bg-indigo-950/20 border-indigo-500/20 hover:bg-indigo-900/30 transition-all cursor-pointer h-full shadow-lg rounded-2xl">
+                                                <CardHeader className="pb-2">
+                                                    <CardTitle className="text-indigo-400 flex items-center gap-2 text-base font-bold uppercase tracking-wider">
+                                                        <FileBarChart className="w-5 h-5" />
+                                                        Informes
+                                                    </CardTitle>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="text-2xl font-black text-white">Ver Reportes →</div>
+                                                </CardContent>
+                                            </Card>
+                                        </Link>
+                                    )}
+                                    {!(isUser && isAttendanceRegistered) && (
+                                        <QuorumCard quorum={quorum} loading={loadingQuorum} />
+                                    )}
                                 </div>
                             )}
                         </div>
+
+                        {/* Power Management */}
+                        {!isAdmin && !(isUser && isAttendanceRegistered) && (
+                            <PowerManagement
+                                userId={user.id}
+                                userRole={userProfile?.role}
+                                givenProxy={givenProxy}
+                                receivedProxies={powerStats?.representedUnits || []}
+                                ownWeight={powerStats?.ownWeight || 0}
+                            />
+                        )}
+
+                        {/* Voting Section */}
+                        {(!isUser || isAttendanceRegistered) && (
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-xl md:text-2xl font-black tracking-tight">{isAdmin ? "Gestión de Votaciones" : "Votaciones en Curso"}</h2>
+                                    <div className="h-0.5 flex-1 bg-white/5" />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {isAdmin && <CreateVoteForm assemblyId={userProfile?.assembly_id || ''} onVoteCreated={handleVoteAction} />}
+                                    {localVotes && localVotes.map((vote) => (
+                                        <VoteCard 
+                                            key={vote.id} 
+                                            vote={vote} 
+                                            user={user} 
+                                            userProfile={userProfile} 
+                                            handleVoteAction={handleVoteAction} 
+                                            handleUserVote={handleUserVote} 
+                                            isAdmin={isAdmin} 
+                                            supabase={supabase} 
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
         </div>
+    );
+}
+
+// Sub-component for individual Vote cards to clean up main render
+function VoteCard({ vote, user, userProfile, handleVoteAction, handleUserVote, isAdmin, supabase }: any) {
+    const hasVoted = vote.ballots && vote.ballots.some((b: any) => b.user_id === user.id);
+    const isDraft = vote.status === 'DRAFT';
+    const isPaused = vote.status === 'PAUSED';
+    const isClosed = vote.status === 'CLOSED';
+
+    if (isAdmin && isPaused) {
+        return <EditVoteForm vote={vote} onActionComplete={handleVoteAction} />;
+    }
+
+    return (
+        <Card className={cn(
+            "bg-[#121212] border-white/5 shadow-2xl rounded-3xl overflow-hidden transition-all duration-300 hover:border-indigo-500/30",
+            isClosed ? 'opacity-60 grayscale' : ''
+        )}>
+            <div className="h-2 w-full bg-gradient-to-r from-indigo-600 to-indigo-400" />
+            <CardHeader className="pb-3">
+                <div className="flex justify-between items-start gap-4">
+                    <CardTitle className="text-white text-lg md:text-xl font-bold leading-snug">{vote.title}</CardTitle>
+                    <div className="flex gap-2 shrink-0">
+                        {isDraft && <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-500/20 text-gray-400 border border-gray-500/20 font-black tracking-wider uppercase">Borrador</span>}
+                        {isPaused && <span className="px-2 py-0.5 rounded-full text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 font-black tracking-wider uppercase">Pausada</span>}
+                        {isClosed && <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500/20 text-red-400 border border-red-500/20 font-black tracking-wider uppercase">Cerrada</span>}
+                        {vote.status === 'OPEN' && <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-black tracking-wider animate-pulse uppercase">Abierta</span>}
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <p className="text-gray-400 text-sm md:text-base leading-relaxed">{vote.description || "Sin descripción adicional."}</p>
+
+                {isAdmin && <AdminVoteControls voteId={vote.id} status={vote.status} onActionComplete={handleVoteAction} />}
+
+                {(isAdmin || isClosed || hasVoted) && (
+                    <VoteResults voteId={vote.id} options={vote.vote_options} supabase={supabase} />
+                )}
+
+                {!isAdmin && !isDraft && !isClosed && vote.status === 'OPEN' && (
+                    <div className="pt-4 border-t border-white/5">
+                        {hasVoted ? (
+                            <Button disabled className="w-full h-14 bg-emerald-500/10 text-emerald-500 border-2 border-emerald-500/20 rounded-2xl font-bold flex items-center justify-center gap-2">
+                                <CheckCircle2 className="w-5 h-5" />
+                                Voto Registrado
+                            </Button>
+                        ) : (
+                            <VoteInterface vote={vote} userRole={userProfile?.role} userId={user.id} onVoteSuccess={() => handleUserVote(vote.id)} />
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }

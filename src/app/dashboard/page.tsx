@@ -7,7 +7,8 @@ import { unstable_noStore as noStore } from 'next/cache';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function DashboardPage() {
+export default async function DashboardPage(props: { searchParams: Promise<{ id?: string }> }) {
+    const searchParams = await props.searchParams;
     noStore();
     const supabase = await createClient()
 
@@ -26,6 +27,9 @@ export default async function DashboardPage() {
         .eq('id', user.id)
         .single()
 
+    const isAdmin = userProfile?.role === 'ADMIN';
+    const isOperator = userProfile?.role === 'OPERATOR';
+
     // Fetch represented units (Own + Proxies)
     const { data: representedUnits } = await supabase
         .from('units')
@@ -35,17 +39,16 @@ export default async function DashboardPage() {
 
     // Para apoderados (proxy holders) el assembly_id puede no estar en su perfil.
     // Lo derivamos de las unidades que representan.
-    const effectiveAssemblyId: string | null =
-        userProfile?.assembly_id ?? representedUnits?.[0]?.assembly_id ?? null;
+    // Para Admin u Operador puede venir de searchParams.id
+    const effectiveAssemblyId: string | null = (isAdmin || isOperator)
+        ? (searchParams.id || userProfile?.assembly_id || null)
+        : (userProfile?.assembly_id ?? representedUnits?.[0]?.assembly_id ?? null);
 
     const resolvedUserProfile = (effectiveAssemblyId && !userProfile?.assembly_id)
         ? { ...userProfile, assembly_id: effectiveAssemblyId }
         : userProfile;
 
     const totalCoefficient = (representedUnits || []).reduce((sum, u) => sum + Number(u.coefficient || 0), 0);
-
-    const isAdmin = userProfile?.role === 'ADMIN';
-    const isOperator = userProfile?.role === 'OPERATOR';
 
     // Fetch proxies data (Given and Received)
     let givenProxy = null;
@@ -99,6 +102,49 @@ export default async function DashboardPage() {
         asistenciaRegistrada = !!attendanceRecord && attendanceRecord.length > 0;
     }
 
+    // Fetch ALL units for the assembly if ADMIN or OPERATOR
+    let allAssemblyUnits: any[] = [];
+    let proxyMap: Record<string, { type: string; is_external: boolean }> = {};
+
+    if ((isAdmin || isOperator) && effectiveAssemblyId) {
+        // Use service role for internal fetching to bypass potential RLS issues for Operators
+        const { createClient: createAdminClient } = await import('@supabase/supabase-js');
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            { auth: { persistSession: false } }
+        );
+
+        const [unitsRes, proxiesRes] = await Promise.all([
+            supabaseAdmin
+                .from('units')
+                .select(`
+                    *,
+                    unit_number:number,
+                    representative:users!representative_id(id, full_name, document_number)
+                `)
+                .eq('assembly_id', effectiveAssemblyId)
+                .order('number'),
+            supabaseAdmin
+                .from('proxies')
+                .select('type, is_external, principal:users!proxies_principal_id_fkey(document_number)')
+                .eq('status', 'APPROVED')
+        ]);
+        
+        allAssemblyUnits = unitsRes.data || [];
+        
+        if (proxiesRes.data) {
+            for (const p of (proxiesRes.data as any[])) {
+                let doc = p.principal?.document_number;
+                if (doc) {
+                    // Normalize doc: remove DUPLICATE_ prefix if present
+                    const cleanDoc = doc.replace('DUPLICATE_', '').trim().toUpperCase();
+                    proxyMap[cleanDoc] = { type: p.type, is_external: p.is_external };
+                }
+            }
+        }
+    }
+
     const displayUnit = representedUnits && representedUnits.length > 0
         ? representedUnits.map(u => u.number).join(', ')
         : 'Sin Unidad'
@@ -119,7 +165,10 @@ export default async function DashboardPage() {
             displayUnit={displayUnit}
             isAdmin={isAdmin}
             isOperator={isOperator}
-            asistenciaRegistrada={asistenciaRegistrada} // REAL STATE
+            asistenciaRegistrada={asistenciaRegistrada}
+            allAssemblyUnits={allAssemblyUnits || []}
+            proxyMap={proxyMap}
+            assemblyId={effectiveAssemblyId}
         />
     )
 }
